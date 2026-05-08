@@ -399,7 +399,7 @@ async function finishTikTokAuth(url, res) {
     }
 
     const tokenData = await exchangeTikTokCode(code);
-    const profile = await fetchTikTokProfile(tokenData.access_token);
+    const profile = await fetchTikTokProfileSafe(tokenData.access_token);
     const channel = {
       id: "tiktok",
       provider: "tiktok",
@@ -519,6 +519,17 @@ async function fetchTikTokProfile(accessToken) {
     headers: { authorization: `Bearer ${accessToken}` },
   });
   return data.data?.user || {};
+}
+
+async function fetchTikTokProfileSafe(accessToken) {
+  try {
+    return await fetchTikTokProfile(accessToken);
+  } catch (error) {
+    if (String(error?.message || "").includes("scope_not_authorized")) {
+      return {};
+    }
+    throw error;
+  }
 }
 
 async function fetchYouTubeChannel(accessToken) {
