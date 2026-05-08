@@ -52,7 +52,7 @@
           </div>
           <div class="top-actions">
             <button class="ghost-button" type="button" id="saveDraft">Save draft</button>
-            <button class="primary-button" type="button" id="publishAll">Create publish task</button>
+            <button class="primary-button" type="button" id="publishAll">Publish now</button>
           </div>
         </header>
 
@@ -92,7 +92,7 @@
               <small>9:16 is recommended. This prototype supports real upload and channel publishing.</small>
             </label>
 
-            <div class="video-preview empty" id="previewWrap">
+            <div class="video-preview empty hidden" id="previewWrap">
               <video id="videoPreview" controls muted playsinline></video>
               <div class="empty-preview" id="emptyPreview">
                 <span>▶</span>
@@ -156,10 +156,10 @@
         <section class="panel queue-panel">
             <div class="panel-heading">
               <div>
-              <h2>Distribution queue</h2>
-              <p>Created tasks are stored in local history so you can publish assets to connected channels later.</p>
+              <h2>Live publish run</h2>
+              <p>The primary button starts the selected channels immediately. Progress for this run appears here.</p>
             </div>
-            <button class="ghost-button" type="button" id="resetQueue">Reset queue</button>
+            <button class="ghost-button" type="button" id="resetQueue">Clear run</button>
           </div>
           <div class="queue-list" id="queueList"></div>
         </section>
@@ -173,7 +173,7 @@
             </div>
             <div class="top-actions">
               <button class="ghost-button" type="button" id="librarySelectAll">Select all</button>
-              <button class="primary-button" type="button" id="libraryUseSelected">Create publish task</button>
+              <button class="primary-button" type="button" id="libraryUseSelected">Use in publish</button>
             </div>
           </header>
 
@@ -316,8 +316,8 @@
         </div>
         <div class="platform-fields">
           <label>
-            <span>Channel</span>
-            <select></select>
+            <span>Connected account</span>
+            <div class="readonly-field channel-value"></div>
           </label>
           <label>
             <span>Title</span>
@@ -374,12 +374,8 @@
         </div>
         <div class="channel-settings">
           <label>
-            <span>Default channel</span>
-            <select></select>
-          </label>
-          <label>
-            <span>Default publish</span>
-            <input type="checkbox" />
+            <span>Connected account</span>
+            <div class="readonly-field channel-value"></div>
           </label>
         </div>
         <div class="card-footer">

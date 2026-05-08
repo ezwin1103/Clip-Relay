@@ -293,7 +293,7 @@ function renderPlatforms() {
     node.querySelector(".limit-pill").textContent = `${platform.limit} chars`;
 
     const toggle = node.querySelector('input[type="checkbox"]');
-    const select = node.querySelector("select");
+    const channelValue = node.querySelector(".channel-value");
     const title = node.querySelector('input[type="text"]');
     const caption = node.querySelector("textarea");
     const count = node.querySelector(".char-count");
@@ -301,12 +301,7 @@ function renderPlatforms() {
 
     toggle.checked = isConnected;
     node.classList.toggle("disabled", !isConnected);
-    const channelOptions = connectedChannel?.displayName ? [connectedChannel.displayName] : ["Not connected"];
-    channelOptions.forEach((channel) => {
-      const option = document.createElement("option");
-      option.textContent = channel;
-      select.appendChild(option);
-    });
+    channelValue.textContent = connectedChannel?.displayName || "Not connected";
 
     title.placeholder = `${platform.name} title`;
 
@@ -351,6 +346,7 @@ function updateSummary() {
   document.querySelector("#summaryReady").textContent = ready ? "Ready to publish" : "Needs review";
   document.querySelector("#summaryMode").textContent =
     state.mode === "now" ? "Publish now" : document.querySelector("#scheduleAt").value || "Scheduled";
+  document.querySelector("#publishAll").textContent = state.mode === "now" ? "Publish now" : "Schedule task";
 }
 
 function handleFile(file) {
@@ -358,6 +354,7 @@ function handleFile(file) {
   state.hasVideo = true;
   const url = URL.createObjectURL(file);
   videoPreview.src = url;
+  previewWrap.classList.remove("hidden");
   previewWrap.classList.remove("empty");
   emptyPreview.style.display = "none";
   document.querySelector("#fileName").textContent = file.name;
@@ -406,7 +403,7 @@ function applyMasterCaption() {
 
 function resetQueue() {
   window.clearInterval(state.queueTimer);
-  queueList.innerHTML = '<p class="queue-empty">No tasks yet. Upload a video and create a publish task to see the queue.</p>';
+  queueList.innerHTML = '<p class="queue-empty">No active publish run. Upload a video and click Publish now to start.</p>';
 }
 
 async function publishAll() {
@@ -440,17 +437,40 @@ async function publishAll() {
 
   try {
     const task = await savePublishTask(cards);
+    const publishPromises = [];
     rows.forEach(({ row, platform }) => {
       row.querySelector(".progress span").style.width = "100%";
       const status = row.querySelector(".queue-status");
       if (isPlatformConnected(platform.id)) {
-        status.innerHTML = `<button class="tiny-button queue-publish" type="button">Publish</button>`;
-        status.querySelector("button").addEventListener("click", () => publishTaskToPlatform(task.id, platform.id));
+        if (state.mode === "now") {
+          status.textContent = "Starting";
+          publishPromises.push(
+            publishTaskToPlatform(task.id, platform.id, { silent: true })
+              .then(() => {
+                status.textContent = "Running";
+              })
+              .catch((error) => {
+                status.textContent = "Failed";
+                row.querySelector(".progress span").style.width = "0%";
+                const detail = document.createElement("p");
+                detail.className = "queue-error";
+                detail.textContent = error.message;
+                row.appendChild(detail);
+              }),
+          );
+        } else {
+          status.textContent = "Scheduled";
+        }
       } else {
-        status.textContent = "Coming soon";
+        status.textContent = "Not connected";
       }
     });
-    setAiHelper("The publish task is ready. You can click Publish on any connected platform.");
+    if (state.mode === "now") {
+      await Promise.allSettled(publishPromises);
+      setAiHelper("Publishing has started on every selected connected channel. You can track live progress here and in task history.");
+    } else {
+      setAiHelper("The task has been saved to the schedule. It will stay in task history until you publish it.");
+    }
   } catch (error) {
     queueList.innerHTML = `<p class="queue-empty">Could not create the task: ${escapeHtml(error.message)}</p>`;
   }
@@ -475,7 +495,7 @@ function platformPayload(card) {
     id: platform.id,
     name: platform.name,
     logo: platform.logo,
-    channel: card.querySelector("select").value,
+    channel: card.querySelector(".channel-value").textContent.trim(),
     title: card.querySelector('input[type="text"]').value.trim(),
     caption: card.querySelector("textarea").value.trim(),
   };
@@ -577,6 +597,7 @@ function useAsset(asset) {
   state.hasVideo = true;
   if (asset.url) {
     videoPreview.src = asset.url;
+    previewWrap.classList.remove("hidden");
     previewWrap.classList.remove("empty");
     emptyPreview.style.display = "none";
   }
@@ -770,7 +791,7 @@ function loadDraft(draft) {
     const saved = platformMap.get(card.dataset.platform);
     if (!saved) return;
     card.querySelector('input[type="checkbox"]').checked = saved.selected !== false;
-    card.querySelector("select").value = saved.channel || card.querySelector("select").value;
+    if (saved.channel) card.querySelector(".channel-value").textContent = saved.channel;
     card.querySelector('input[type="text"]').value = saved.title || "";
     const caption = card.querySelector("textarea");
     caption.value = saved.caption || "";
@@ -812,15 +833,20 @@ async function publishTaskToYouTube(id) {
   return publishTaskToPlatform(id, "youtube");
 }
 
-async function publishTaskToPlatform(id, platformId) {
+async function publishTaskToPlatform(id, platformId, options = {}) {
   const platform = platforms.find((item) => item.id === platformId);
   try {
-    setAiHelper(`${platform?.name || platformId} upload has started in the background. Progress will appear in task history.`, true);
+    if (!options.silent) {
+      setAiHelper(`${platform?.name || platformId} upload has started in the background. Progress will appear in task history.`, true);
+    }
     await apiRequest(`/api/publish/${platformId}/${id}`, { method: "POST" });
     await loadServerState();
     pollPlatformTask(id, platformId);
   } catch (error) {
-    setAiHelper(`${platform?.name || platformId} publish failed: ${error.message}`);
+    if (!options.silent) {
+      setAiHelper(`${platform?.name || platformId} publish failed: ${error.message}`);
+    }
+    throw error;
   }
 }
 
@@ -876,15 +902,7 @@ function renderChannels() {
     node.querySelector(".channel-note").textContent = connected ? `Authorized: ${formatDate(serverChannel.connectedAt)}` : channelSetupText(platform.id);
     const actionButton = node.querySelector(".tiny-button");
     actionButton.textContent = connected ? "Disconnect" : channelActionText(platform.id);
-    const select = node.querySelector("select");
-    const channelOptions = connected && serverChannel.displayName ? [serverChannel.displayName] : platform.channels;
-    channelOptions.forEach((channel) => {
-      const option = document.createElement("option");
-      option.textContent = channel;
-      select.appendChild(option);
-    });
-    const checkbox = node.querySelector('input[type="checkbox"]');
-    checkbox.checked = connected;
+    node.querySelector(".channel-value").textContent = connected ? (serverChannel.displayName || "Authorized account") : "Not connected";
     actionButton.disabled = platform.id === "twitter";
     actionButton.addEventListener("click", async () => {
       if (connected) {

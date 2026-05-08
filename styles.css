@@ -365,6 +365,10 @@ h3 {
   aspect-ratio: 16 / 9;
 }
 
+.video-preview.hidden {
+  display: none;
+}
+
 .video-preview video {
   display: block;
   width: 100%;
@@ -458,6 +462,18 @@ input:focus,
 select:focus {
   border-color: var(--green);
   box-shadow: 0 0 0 3px rgba(31, 122, 92, 0.12);
+}
+
+.readonly-field {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 11px;
+  border: 1px solid #cfd8d1;
+  border-radius: 8px;
+  background: #f7faf8;
+  color: var(--ink);
+  font-weight: 650;
 }
 
 textarea {
@@ -687,6 +703,14 @@ textarea {
 
 .queue-status .tiny-button {
   min-width: 72px;
+}
+
+.queue-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .queue-empty {
@@ -1008,15 +1032,9 @@ textarea {
 
 .channel-settings {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 130px;
+  grid-template-columns: minmax(180px, 1fr);
   gap: 12px;
   align-items: end;
-}
-
-.channel-settings input[type="checkbox"] {
-  width: 22px;
-  height: 22px;
-  accent-color: var(--green);
 }
 
 @media (max-width: 1040px) {
