@@ -364,7 +364,7 @@ async function finishInstagramAuth(url, res) {
     }
 
     const tokenData = await exchangeInstagramCode(code);
-    const profile = await fetchInstagramProfile(tokenData.access_token);
+    const profile = await fetchInstagramProfileSafe(tokenData.access_token, tokenData.user_id);
     const channel = {
       id: "instagram",
       provider: "instagram",
@@ -542,6 +542,25 @@ async function fetchInstagramProfile(userAccessToken) {
     instagramBusinessAccountId: igUserId,
     displayName: profile.username || profile.name || "Instagram Account",
     thumbnail: profile.profile_picture_url || "",
+  };
+}
+
+async function fetchInstagramProfileSafe(userAccessToken, fallbackUserId = "") {
+  try {
+    const profile = await fetchInstagramProfile(userAccessToken);
+    if (profile?.instagramBusinessAccountId) return profile;
+  } catch (error) {
+    console.warn("Instagram profile lookup failed, using fallback profile:", error.message || error);
+  }
+
+  if (!fallbackUserId) {
+    throw new Error("Instagram authorization succeeded, but no Instagram account ID was returned. Please verify the app permissions and reconnect.");
+  }
+
+  return {
+    instagramBusinessAccountId: String(fallbackUserId),
+    displayName: "Instagram Account",
+    thumbnail: "",
   };
 }
 
