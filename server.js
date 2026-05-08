@@ -185,11 +185,24 @@ function missingGoogleCredentials() {
 }
 
 function missingInstagramCredentials() {
-  return !env.META_APP_ID || !env.META_APP_SECRET;
+  return !getInstagramAppId() || !getInstagramAppSecret();
 }
 
 function hasMetaConfigId() {
   return Boolean(env.META_CONFIG_ID);
+}
+
+function getInstagramAppId() {
+  return env.INSTAGRAM_APP_ID || env.META_APP_ID || "";
+}
+
+function getInstagramAppSecret() {
+  return env.INSTAGRAM_APP_SECRET || env.META_APP_SECRET || "";
+}
+
+function getInstagramScopes() {
+  return env.INSTAGRAM_SCOPES
+    || "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_manage_insights";
 }
 
 function missingTikTokCredentials() {
@@ -307,9 +320,9 @@ async function startInstagramAuth(res) {
     return sendHtml(
       res,
       `<main style="font-family:system-ui;padding:32px;line-height:1.6;max-width:760px">
-        <h1>Meta OAuth is required</h1>
-        <p>Fill in <code>META_APP_ID</code> and <code>META_APP_SECRET</code> inside <code>.env</code>.</p>
-        <p>If your Meta app uses Facebook Login for Business, also set <code>META_CONFIG_ID</code>.</p>
+        <h1>Instagram OAuth is required</h1>
+        <p>Fill in <code>INSTAGRAM_APP_ID</code> and <code>INSTAGRAM_APP_SECRET</code> inside <code>.env</code>.</p>
+        <p>The server also accepts <code>META_APP_ID</code> and <code>META_APP_SECRET</code> as a fallback for older setups.</p>
         <p>Use this Valid OAuth Redirect URI in your Meta app:</p>
         <pre style="background:#f2f4f3;padding:12px;border-radius:8px">${instagramRedirectUri}</pre>
         <p><a href="/">Return to ClipRelay</a></p>
@@ -323,16 +336,13 @@ async function startInstagramAuth(res) {
   db.oauthStates = { ...(db.oauthStates || {}), instagram: state };
   await writeDb(db);
 
-  const authUrl = new URL("https://www.facebook.com/v19.0/dialog/oauth");
-  authUrl.searchParams.set("client_id", env.META_APP_ID);
+  const authUrl = new URL("https://www.instagram.com/oauth/authorize");
+  authUrl.searchParams.set("client_id", getInstagramAppId());
   authUrl.searchParams.set("redirect_uri", instagramRedirectUri);
   authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("force_reauth", "true");
   authUrl.searchParams.set("state", state);
-  if (hasMetaConfigId()) {
-    authUrl.searchParams.set("config_id", env.META_CONFIG_ID);
-  } else {
-    authUrl.searchParams.set("scope", "pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publish,business_management");
-  }
+  authUrl.searchParams.set("scope", getInstagramScopes());
 
   res.writeHead(302, { location: authUrl.toString() });
   res.end();
@@ -506,31 +516,32 @@ async function exchangeGoogleCode(code) {
 }
 
 async function exchangeInstagramCode(code) {
-  const params = new URLSearchParams({
-    client_id: env.META_APP_ID,
-    client_secret: env.META_APP_SECRET,
+  const body = new URLSearchParams({
+    client_id: getInstagramAppId(),
+    client_secret: getInstagramAppSecret(),
     redirect_uri: instagramRedirectUri,
     code,
+    grant_type: "authorization_code",
   });
-  return requestJson(`https://graph.facebook.com/v19.0/oauth/access_token?${params.toString()}`);
+  return requestJson("https://api.instagram.com/oauth/access_token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
 }
 
 async function fetchInstagramProfile(userAccessToken) {
-  const accounts = await requestJson(
-    `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,instagram_business_account{id,username,name,profile_picture_url}&access_token=${encodeURIComponent(userAccessToken)}`,
+  const profile = await requestJson(
+    `https://graph.instagram.com/v24.0/me?fields=id,user_id,username,name,profile_picture_url&access_token=${encodeURIComponent(userAccessToken)}`,
   );
-  const page = accounts.data?.find((item) => item.instagram_business_account) || accounts.data?.[0];
-  if (!page?.instagram_business_account?.id) {
-    throw new Error("No connected Instagram Business or Creator account was found. Confirm that your Facebook Page is linked to a professional Instagram account.");
+  const igUserId = profile.id || profile.user_id;
+  if (!igUserId) {
+    throw new Error("No Instagram professional account ID was returned. Confirm that you connected a Business or Creator account in Instagram Login.");
   }
-  const ig = page.instagram_business_account;
   return {
-    pageId: page.id,
-    pageName: page.name,
-    pageAccessToken: page.access_token,
-    instagramBusinessAccountId: ig.id,
-    displayName: ig.username || ig.name || page.name,
-    thumbnail: ig.profile_picture_url || "",
+    instagramBusinessAccountId: igUserId,
+    displayName: profile.username || profile.name || "Instagram Account",
+    thumbnail: profile.profile_picture_url || "",
   };
 }
 
@@ -895,37 +906,42 @@ async function runInstagramUpload(taskId) {
   const channel = db.channels?.find((item) => item.id === "instagram" && item.connected);
   const copy = task.platforms?.find((item) => item.id === "instagram");
   try {
-    if (!channel?.externalId) throw new Error("Instagram channel is missing Business Account ID. Please reconnect Instagram.");
+    if (!channel?.externalId) throw new Error("Instagram channel is missing the Instagram account ID. Please reconnect Instagram.");
     if (!env.PUBLIC_ASSET_BASE_URL) {
       throw new Error("Instagram Reels publishing requires a public HTTPS video URL. Set PUBLIC_ASSET_BASE_URL, such as a Cloudflare Tunnel, S3, or R2 URL.");
     }
     const videoUrl = `${env.PUBLIC_ASSET_BASE_URL.replace(/\/$/, "")}${task.asset.url}`;
     await updatePlatformTaskProgress(taskId, "instagram", { status: "publishing", progress: 5, note: "Reels container submitted" });
-    const token = channel.pageAccessToken || channel.accessToken;
+    const token = channel.accessToken;
     const createBody = new URLSearchParams({
       media_type: "REELS",
       video_url: videoUrl,
       caption: copy.caption || task.masterCaption || "",
       share_to_feed: "true",
-      access_token: token,
     });
-    const container = await requestJson(`https://graph.facebook.com/v19.0/${channel.externalId}/media`, {
+    const container = await requestJson(`https://graph.instagram.com/v24.0/${channel.externalId}/media`, {
       method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        authorization: `Bearer ${token}`,
+      },
       body: createBody.toString(),
     });
     await waitForInstagramContainer(container.id, token, (progress) => updatePlatformTaskProgress(taskId, "instagram", progress));
-    const publishBody = new URLSearchParams({ creation_id: container.id, access_token: token });
-    const published = await requestJson(`https://graph.facebook.com/v19.0/${channel.externalId}/media_publish`, {
+    const publishBody = new URLSearchParams({ creation_id: container.id });
+    const published = await requestJson(`https://graph.instagram.com/v24.0/${channel.externalId}/media_publish`, {
       method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        authorization: `Bearer ${token}`,
+      },
       body: publishBody.toString(),
     });
     await updatePlatformTaskProgress(taskId, "instagram", {
       status: "published",
       progress: 100,
       postId: published.id || "",
-      url: published.id ? `https://www.instagram.com/p/${published.id}/` : "",
+      url: "",
       raw: published,
       publishedAt: new Date().toISOString(),
       taskStatus: "published",
@@ -943,7 +959,7 @@ async function runInstagramUpload(taskId) {
 async function waitForInstagramContainer(containerId, accessToken, onProgress) {
   for (let attempt = 0; attempt < 24; attempt += 1) {
     const status = await requestJson(
-      `https://graph.facebook.com/v19.0/${containerId}?fields=status_code,status&access_token=${encodeURIComponent(accessToken)}`,
+      `https://graph.instagram.com/v24.0/${containerId}?fields=status_code,status&access_token=${encodeURIComponent(accessToken)}`,
     );
     if (status.status_code === "FINISHED") {
       await onProgress?.({ status: "publishing", progress: 85, note: "Reels container finished processing" });
