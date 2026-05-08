@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { execFile } from "node:child_process";
 import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { openSync, readSync, closeSync } from "node:fs";
+import { createHmac } from "node:crypto";
 import { extname, join, normalize, relative } from "node:path";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
@@ -20,6 +21,8 @@ const youtubeRedirectUri = `${appBaseUrl}/auth/youtube/callback`;
 const instagramRedirectUri = `${appBaseUrl}/auth/instagram/callback`;
 const tiktokRedirectUri = `${appBaseUrl}/auth/tiktok/callback`;
 const outboundProxy = env.OUTBOUND_PROXY_URL || env.GOOGLE_PROXY_URL || "";
+const oauthStateSecret =
+  env.OAUTH_STATE_SECRET || env.GOOGLE_CLIENT_SECRET || env.META_APP_SECRET || env.TIKTOK_CLIENT_SECRET || "cliprelay-local-state";
 const execFileAsync = promisify(execFile);
 
 const mimeTypes = {
@@ -41,6 +44,7 @@ createServer(async (req, res) => {
     if (url.pathname === "/api/health") return sendJson(res, { ok: true, userId: localUserId });
     if (url.pathname === "/api/state" && req.method === "GET") return sendJson(res, publicDb(await readDb()));
     if (url.pathname === "/api/channels" && req.method === "GET") return sendJson(res, publicChannels((await readDb()).channels));
+    if (url.pathname.startsWith("/api/channels/") && req.method === "DELETE") return deleteChannel(url, res);
     if (url.pathname === "/auth/youtube" && req.method === "GET") return startYouTubeAuth(res);
     if (url.pathname === "/auth/youtube/callback" && req.method === "GET") return finishYouTubeAuth(url, res);
     if (url.pathname === "/auth/instagram" && req.method === "GET") return startInstagramAuth(res);
@@ -188,6 +192,28 @@ function missingTikTokCredentials() {
   return !env.TIKTOK_CLIENT_KEY || !env.TIKTOK_CLIENT_SECRET;
 }
 
+function createOAuthState(provider) {
+  const nonce = crypto.randomUUID();
+  const issuedAt = Date.now().toString();
+  const payload = `${provider}.${issuedAt}.${nonce}`;
+  const signature = createHmac("sha256", oauthStateSecret).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+function verifyOAuthState(state, provider) {
+  const parts = String(state || "").split(".");
+  if (parts.length !== 4) return false;
+  const [stateProvider, issuedAt, nonce, signature] = parts;
+  if (!stateProvider || !issuedAt || !nonce || !signature) return false;
+  if (stateProvider !== provider) return false;
+  const issuedAtNumber = Number(issuedAt);
+  if (!Number.isFinite(issuedAtNumber)) return false;
+  if (Math.abs(Date.now() - issuedAtNumber) > 30 * 60 * 1000) return false;
+  const payload = `${stateProvider}.${issuedAt}.${nonce}`;
+  const expected = createHmac("sha256", oauthStateSecret).update(payload).digest("base64url");
+  return expected === signature;
+}
+
 async function startYouTubeAuth(res) {
   if (missingGoogleCredentials()) {
     return sendHtml(
@@ -204,7 +230,7 @@ async function startYouTubeAuth(res) {
   }
 
   const db = await readDb();
-  const state = crypto.randomUUID();
+  const state = createOAuthState("youtube");
   db.oauthStates = { ...(db.oauthStates || {}), youtube: state };
   await writeDb(db);
 
@@ -235,7 +261,7 @@ async function finishYouTubeAuth(url, res) {
     if (!code) return sendAuthError(res, "Google 没有返回授权 code。", "请重新从频道连接页发起授权。");
 
     const db = await readDb();
-    if (!returnedState || returnedState !== db.oauthStates?.youtube) {
+    if (!returnedState || (returnedState !== db.oauthStates?.youtube && !verifyOAuthState(returnedState, "youtube"))) {
       return sendAuthError(res, "OAuth state 校验失败。", "请回到 ClipRelay 重新点击连接 YouTube。");
     }
 
@@ -288,7 +314,7 @@ async function startInstagramAuth(res) {
   }
 
   const db = await readDb();
-  const state = crypto.randomUUID();
+  const state = createOAuthState("instagram");
   db.oauthStates = { ...(db.oauthStates || {}), instagram: state };
   await writeDb(db);
 
@@ -314,7 +340,7 @@ async function finishInstagramAuth(url, res) {
     if (!code) return sendAuthError(res, "Meta 没有返回授权 code。", "请重新从频道连接页发起授权。");
 
     const db = await readDb();
-    if (!returnedState || returnedState !== db.oauthStates?.instagram) {
+    if (!returnedState || (returnedState !== db.oauthStates?.instagram && !verifyOAuthState(returnedState, "instagram"))) {
       return sendAuthError(res, "OAuth state 校验失败。", "请回到 ClipRelay 重新点击连接 Instagram。");
     }
 
@@ -368,7 +394,7 @@ async function startTikTokAuth(res) {
   }
 
   const db = await readDb();
-  const state = crypto.randomUUID();
+  const state = createOAuthState("tiktok");
   db.oauthStates = { ...(db.oauthStates || {}), tiktok: state };
   await writeDb(db);
 
@@ -394,7 +420,7 @@ async function finishTikTokAuth(url, res) {
     if (!code) return sendAuthError(res, "TikTok 没有返回授权 code。", "请重新从频道连接页发起授权。");
 
     const db = await readDb();
-    if (!returnedState || returnedState !== db.oauthStates?.tiktok) {
+    if (!returnedState || (returnedState !== db.oauthStates?.tiktok && !verifyOAuthState(returnedState, "tiktok"))) {
       return sendAuthError(res, "OAuth state 校验失败。", "请回到 ClipRelay 重新点击连接 TikTok。");
     }
 
@@ -741,6 +767,16 @@ async function deleteTask(url, res) {
   db.tasks = db.tasks.filter((task) => task.id !== id);
   await writeDb(db);
   sendJson(res, { ok: db.tasks.length < before });
+}
+
+async function deleteChannel(url, res) {
+  const id = decodeURIComponent(url.pathname.split("/").at(-1));
+  const db = await readDb();
+  const before = db.channels.length;
+  db.channels = db.channels.filter((channel) => channel.id !== id);
+  if (db.oauthStates && id in db.oauthStates) db.oauthStates[id] = undefined;
+  await writeDb(db);
+  sendJson(res, { ok: db.channels.length < before });
 }
 
 async function uploadTaskToYouTube(url, res) {

@@ -849,7 +849,7 @@ function renderChannels() {
     node.querySelector(".channel-state").classList.toggle("pending", !connected);
     node.querySelector(".channel-note").textContent = connected ? `授权时间：${formatDate(serverChannel.connectedAt)}` : channelSetupText(platform.id);
     const actionButton = node.querySelector(".tiny-button");
-    actionButton.textContent = connected ? "重新授权" : channelActionText(platform.id);
+    actionButton.textContent = connected ? "断开连接" : channelActionText(platform.id);
     const select = node.querySelector("select");
     const channelOptions = connected && serverChannel.displayName ? [serverChannel.displayName] : platform.channels;
     channelOptions.forEach((channel) => {
@@ -860,7 +860,11 @@ function renderChannels() {
     const checkbox = node.querySelector('input[type="checkbox"]');
     checkbox.checked = connected;
     actionButton.disabled = platform.id === "twitter";
-    actionButton.addEventListener("click", () => {
+    actionButton.addEventListener("click", async () => {
+      if (connected) {
+        await disconnectChannel(platform.id, platform.name);
+        return;
+      }
       if (platform.id === "youtube") window.location.href = "/auth/youtube";
       if (platform.id === "instagram") window.location.href = "/auth/instagram";
       if (platform.id === "tiktok") window.location.href = "/auth/tiktok";
@@ -868,6 +872,16 @@ function renderChannels() {
     channelGrid.appendChild(node);
   });
   updateChannelSummary();
+}
+
+async function disconnectChannel(platformId, platformName) {
+  try {
+    await apiRequest(`/api/channels/${platformId}`, { method: "DELETE" });
+    await loadServerState();
+    setAiHelper(`${platformName} 已断开。现在可以重新连接并录制完整流程。`);
+  } catch (error) {
+    setAiHelper(`${platformName} 断开失败：${error.message}`);
+  }
 }
 
 function channelConnectionText(platformId) {
