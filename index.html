@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ClipRelay 视频分发台</title>
+    <title>ClipRelay Distribution Console</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -13,32 +13,32 @@
           <span class="brand-mark">CR</span>
           <div>
             <strong>ClipRelay</strong>
-            <span>视频分发台</span>
+            <span>Distribution Console</span>
           </div>
         </div>
-        <nav class="nav-list" aria-label="主导航">
+        <nav class="nav-list" aria-label="Primary navigation">
           <button class="nav-item active" type="button" data-view="publish">
             <span class="icon">↑</span>
-            <span>发布任务</span>
+            <span>Publish</span>
           </button>
           <button class="nav-item" type="button" data-view="library">
             <span class="icon">▦</span>
-            <span>素材库</span>
+            <span>Library</span>
           </button>
           <button class="nav-item" type="button" data-view="schedule">
             <span class="icon">◷</span>
-            <span>排期</span>
+            <span>Schedule</span>
           </button>
           <button class="nav-item" type="button" data-view="channels">
             <span class="icon">◇</span>
-            <span>频道连接</span>
+            <span>Channels</span>
           </button>
         </nav>
         <div class="account-box">
           <span class="status-dot"></span>
           <div>
-            <strong id="sidebarConnected">0 个频道在线</strong>
-            <span id="sidebarMode">本地工作台</span>
+            <strong id="sidebarConnected">0 channels online</strong>
+            <span id="sidebarMode">Local workspace</span>
           </div>
         </div>
       </aside>
@@ -47,31 +47,31 @@
         <section class="view active" id="view-publish">
         <header class="topbar">
           <div>
-            <p class="eyebrow">新建分发任务</p>
-            <h1>一次上传，多平台微调发布</h1>
+            <p class="eyebrow">Create a distribution task</p>
+            <h1>Upload once, tailor every channel</h1>
           </div>
           <div class="top-actions">
-            <button class="ghost-button" type="button" id="saveDraft">保存草稿</button>
-            <button class="primary-button" type="button" id="publishAll">创建发布任务</button>
+            <button class="ghost-button" type="button" id="saveDraft">Save draft</button>
+            <button class="primary-button" type="button" id="publishAll">Create publish task</button>
           </div>
         </header>
 
-        <section class="summary-strip" aria-label="任务概览">
+        <section class="summary-strip" aria-label="Task summary">
           <div>
-            <span>视频</span>
-            <strong id="summaryVideo">未上传</strong>
+            <span>Video</span>
+            <strong id="summaryVideo">Not uploaded</strong>
           </div>
           <div>
-            <span>已选择平台</span>
+            <span>Selected platforms</span>
             <strong id="summaryPlatforms">4 / 4</strong>
           </div>
           <div>
-            <span>准备状态</span>
-            <strong id="summaryReady">待完善</strong>
+            <span>Readiness</span>
+            <strong id="summaryReady">Needs review</strong>
           </div>
           <div>
-            <span>预计分发</span>
-            <strong id="summaryMode">立即发布</strong>
+            <span>Publish mode</span>
+            <strong id="summaryMode">Publish now</strong>
           </div>
         </section>
 
@@ -79,8 +79,8 @@
           <section class="panel upload-panel">
             <div class="panel-heading">
               <div>
-                <h2>视频素材</h2>
-                <p>上传短视频文件后，可在右侧分别编辑每个平台的标题和文案。</p>
+                <h2>Video asset</h2>
+                <p>Upload a short-form video, then tailor the title and caption for each platform.</p>
               </div>
               <span class="badge">MP4 / MOV</span>
             </div>
@@ -88,64 +88,64 @@
             <label class="dropzone" id="dropzone">
               <input id="videoInput" type="file" accept="video/*" />
               <span class="upload-icon">↥</span>
-              <strong>拖拽视频到这里，或点击上传</strong>
-              <small>建议 9:16，60 秒以内。原型会在本地预览，不会真正上传。</small>
+              <strong>Drop a video here, or click to upload</strong>
+              <small>9:16 is recommended. This prototype supports real upload and channel publishing.</small>
             </label>
 
             <div class="video-preview empty" id="previewWrap">
               <video id="videoPreview" controls muted playsinline></video>
               <div class="empty-preview" id="emptyPreview">
                 <span>▶</span>
-                <p>视频预览区</p>
+                <p>Video preview</p>
               </div>
             </div>
 
             <dl class="meta-grid">
               <div>
-                <dt>文件名</dt>
+                <dt>Filename</dt>
                 <dd id="fileName">-</dd>
               </div>
               <div>
-                <dt>大小</dt>
+                <dt>Size</dt>
                 <dd id="fileSize">-</dd>
               </div>
               <div>
-                <dt>时长</dt>
+                <dt>Duration</dt>
                 <dd id="fileDuration">-</dd>
               </div>
               <div>
-                <dt>画面</dt>
+                <dt>Frame</dt>
                 <dd id="fileRatio">-</dd>
               </div>
             </dl>
 
             <div class="field-group">
-              <label for="masterCaption">统一文案</label>
-              <textarea id="masterCaption" rows="5" placeholder="写一版通用文案，例如产品亮点、钩子、行动号召。可以一键应用到全部平台。"></textarea>
+              <label for="masterCaption">Master caption</label>
+              <textarea id="masterCaption" rows="5" placeholder="Write one master caption with the hook, value, and CTA. You can apply it across every platform, then edit line by line."></textarea>
             </div>
 
             <div class="toolbar-row">
-              <button class="secondary-button" type="button" id="applyCaption">一键应用到全部平台</button>
-              <button class="primary-button" type="button" id="aiOptimizeAll">AI 优化全部平台</button>
-              <button class="ghost-button" type="button" id="clearCaptions">清空文案</button>
+              <button class="secondary-button" type="button" id="applyCaption">Apply to all</button>
+              <button class="primary-button" type="button" id="aiOptimizeAll">Optimize all with AI</button>
+              <button class="ghost-button" type="button" id="clearCaptions">Clear copy</button>
             </div>
-            <p class="ai-helper" id="aiHelper">AI 默认按欧美市场英文语境优化；如果统一文案为空，则读取各平台已有文案。</p>
+            <p class="ai-helper" id="aiHelper">AI defaults to natural US/EU English and localizes each platform from your current master caption or existing channel copy.</p>
           </section>
 
           <section class="panel destination-panel">
             <div class="panel-heading">
               <div>
-                <h2>分发频道</h2>
-                <p>每个平台可单独选择频道、发布方式和平台化文案。</p>
+                <h2>Distribution channels</h2>
+                <p>Choose a channel, posting mode, and platform-native copy for each destination.</p>
               </div>
-              <div class="segmented" role="group" aria-label="发布方式">
-                <button class="active" type="button" data-mode="now">立即</button>
-                <button type="button" data-mode="schedule">定时</button>
+              <div class="segmented" role="group" aria-label="Publish mode">
+                <button class="active" type="button" data-mode="now">Now</button>
+                <button type="button" data-mode="schedule">Schedule</button>
               </div>
             </div>
 
             <div class="schedule-row" id="scheduleRow">
-              <label for="scheduleAt">发布时间</label>
+              <label for="scheduleAt">Publish time</label>
               <input type="datetime-local" id="scheduleAt" />
             </div>
 
@@ -154,12 +154,12 @@
         </div>
 
         <section class="panel queue-panel">
-          <div class="panel-heading">
-            <div>
-              <h2>分发队列</h2>
-              <p>创建任务后会保存到本地任务历史，可从素材库发布到已连接平台。</p>
+            <div class="panel-heading">
+              <div>
+              <h2>Distribution queue</h2>
+              <p>Created tasks are stored in local history so you can publish assets to connected channels later.</p>
             </div>
-            <button class="ghost-button" type="button" id="resetQueue">重置队列</button>
+            <button class="ghost-button" type="button" id="resetQueue">Reset queue</button>
           </div>
           <div class="queue-list" id="queueList"></div>
         </section>
@@ -168,33 +168,33 @@
         <section class="view" id="view-library">
           <header class="topbar">
             <div>
-              <p class="eyebrow">素材库</p>
-              <h1>管理可复用的视频素材</h1>
+              <p class="eyebrow">Asset library</p>
+              <h1>Manage reusable video assets</h1>
             </div>
             <div class="top-actions">
-              <button class="ghost-button" type="button" id="librarySelectAll">全选</button>
-              <button class="primary-button" type="button" id="libraryUseSelected">创建发布任务</button>
+              <button class="ghost-button" type="button" id="librarySelectAll">Select all</button>
+              <button class="primary-button" type="button" id="libraryUseSelected">Create publish task</button>
             </div>
           </header>
 
-          <section class="filter-bar panel" aria-label="素材筛选">
+          <section class="filter-bar panel" aria-label="Asset filters">
             <label>
-              <span>搜索素材</span>
-              <input id="assetSearch" type="search" placeholder="搜索标题、标签或状态" />
+              <span>Search assets</span>
+              <input id="assetSearch" type="search" placeholder="Search titles, tags, or status" />
             </label>
             <label>
-              <span>状态</span>
+              <span>Status</span>
               <select id="assetStatus">
-                <option value="all">全部状态</option>
-                <option value="ready">可发布</option>
-                <option value="draft">草稿</option>
-                <option value="review">待审核</option>
+                <option value="all">All statuses</option>
+                <option value="ready">Ready to publish</option>
+                <option value="draft">Draft</option>
+                <option value="review">Needs review</option>
               </select>
             </label>
             <label>
-              <span>比例</span>
+              <span>Aspect ratio</span>
               <select id="assetRatio">
-                <option value="all">全部比例</option>
+                <option value="all">All ratios</option>
                 <option value="9:16">9:16</option>
                 <option value="1:1">1:1</option>
                 <option value="16:9">16:9</option>
@@ -202,26 +202,26 @@
             </label>
           </section>
 
-          <section class="asset-grid" id="assetGrid" aria-label="素材列表"></section>
+          <section class="asset-grid" id="assetGrid" aria-label="Asset list"></section>
 
           <section class="library-columns">
             <div class="panel list-panel">
               <div class="panel-heading">
                 <div>
-                  <h2>草稿</h2>
-                  <p>继续编辑还没发布的多平台文案。</p>
+                  <h2>Drafts</h2>
+                  <p>Pick up multi-platform copy that is not ready to publish yet.</p>
                 </div>
-                <span class="badge" id="draftCount">0 条</span>
+                <span class="badge" id="draftCount">0 items</span>
               </div>
               <div class="history-list" id="draftList"></div>
             </div>
             <div class="panel list-panel">
               <div class="panel-heading">
                 <div>
-                  <h2>发布任务</h2>
-                  <p>查看本地已创建的发布任务和平台结果。</p>
+                  <h2>Publish tasks</h2>
+                  <p>Review created publishing jobs and per-platform results.</p>
                 </div>
-                <span class="badge" id="taskCount">0 条</span>
+                <span class="badge" id="taskCount">0 items</span>
               </div>
               <div class="history-list" id="taskList"></div>
             </div>
@@ -231,22 +231,22 @@
         <section class="view" id="view-schedule">
           <header class="topbar">
             <div>
-              <p class="eyebrow">排期</p>
-              <h1>查看跨平台发布时间表</h1>
+              <p class="eyebrow">Schedule</p>
+              <h1>View your cross-platform posting calendar</h1>
             </div>
             <div class="top-actions">
-              <button class="ghost-button" type="button" id="scheduleListMode">列表</button>
-              <button class="primary-button" type="button" id="scheduleNewTask">新增排期</button>
+              <button class="ghost-button" type="button" id="scheduleListMode">List</button>
+              <button class="primary-button" type="button" id="scheduleNewTask">New schedule</button>
             </div>
           </header>
 
           <section class="calendar-board panel">
             <div class="panel-heading">
               <div>
-                <h2>本周发布计划</h2>
-                <p>按天查看视频任务，可快速识别平台覆盖和状态。</p>
+                <h2>This week's publishing plan</h2>
+                <p>See every task by day so you can spot platform coverage and status at a glance.</p>
               </div>
-              <span class="badge" id="scheduleCount">0 个任务</span>
+              <span class="badge" id="scheduleCount">0 tasks</span>
             </div>
             <div class="calendar-grid" id="calendarGrid"></div>
           </section>
@@ -254,8 +254,8 @@
           <section class="panel queue-panel">
             <div class="panel-heading">
               <div>
-                <h2>待处理提醒</h2>
-                <p>这里显示需要补文案、等待审核或即将发布的任务。</p>
+                <h2>Action reminders</h2>
+                <p>This panel surfaces tasks that still need copy, review, or an upcoming publish check.</p>
               </div>
             </div>
             <div class="reminder-list" id="reminderList"></div>
@@ -265,35 +265,35 @@
         <section class="view" id="view-channels">
           <header class="topbar">
             <div>
-              <p class="eyebrow">频道连接</p>
-              <h1>统一管理平台账号授权</h1>
+              <p class="eyebrow">Channel connections</p>
+              <h1>Manage platform authorization in one place</h1>
             </div>
             <div class="top-actions">
-              <button class="ghost-button" type="button" id="refreshChannels">刷新状态</button>
-              <button class="primary-button" type="button" id="connectAll">连接可用频道</button>
+              <button class="ghost-button" type="button" id="refreshChannels">Refresh</button>
+              <button class="primary-button" type="button" id="connectAll">Connect available channels</button>
             </div>
           </header>
 
-          <section class="summary-strip" aria-label="频道概览">
+          <section class="summary-strip" aria-label="Channel overview">
             <div>
-              <span>已连接</span>
+              <span>Connected</span>
               <strong id="connectedCount">0 / 4</strong>
             </div>
             <div>
-              <span>默认发布</span>
-              <strong id="defaultPublishCount">0 个频道</strong>
+              <span>Default publishing</span>
+              <strong id="defaultPublishCount">0 channels</strong>
             </div>
             <div>
-              <span>需要处理</span>
-              <strong id="channelNeeds">1 项</strong>
+              <span>Needs attention</span>
+              <strong id="channelNeeds">1 item</strong>
             </div>
             <div>
-              <span>授权模式</span>
-              <strong id="authMode">OAuth 本地</strong>
+              <span>Auth mode</span>
+              <strong id="authMode">OAuth local</strong>
             </div>
           </section>
 
-          <section class="channel-grid" id="channelGrid" aria-label="频道连接列表"></section>
+          <section class="channel-grid" id="channelGrid" aria-label="Channel connection list"></section>
         </section>
       </main>
     </div>
@@ -316,21 +316,21 @@
         </div>
         <div class="platform-fields">
           <label>
-            <span>频道</span>
+            <span>Channel</span>
             <select></select>
           </label>
           <label>
-            <span>标题</span>
-            <input type="text" placeholder="为这个平台写一个标题" />
+            <span>Title</span>
+            <input type="text" placeholder="Write a platform-specific title" />
           </label>
           <label class="full">
-            <span>文案</span>
-            <textarea rows="4" placeholder="这里可以和其他平台不同"></textarea>
+            <span>Caption</span>
+            <textarea rows="4" placeholder="Customize the copy for this platform"></textarea>
           </label>
         </div>
         <div class="card-footer">
           <span class="char-count">0</span>
-          <button class="tiny-button ai-button" type="button">AI 优化</button>
+          <button class="tiny-button ai-button" type="button">AI optimize</button>
         </div>
       </article>
     </template>
@@ -339,7 +339,7 @@
       <article class="asset-card">
         <div class="asset-thumb">
           <span class="asset-duration"></span>
-          <button class="asset-check" type="button" aria-label="选择素材">✓</button>
+          <button class="asset-check" type="button" aria-label="Select asset">✓</button>
         </div>
         <div class="asset-body">
           <div>
@@ -351,8 +351,8 @@
         <div class="asset-footer">
           <span class="asset-status"></span>
           <div class="asset-actions">
-            <button class="tiny-button use-asset" type="button">用于发布</button>
-            <button class="tiny-button danger-button delete-asset" type="button">删除</button>
+            <button class="tiny-button use-asset" type="button">Use for publishing</button>
+            <button class="tiny-button danger-button delete-asset" type="button">Delete</button>
           </div>
         </div>
       </article>
@@ -372,11 +372,11 @@
         </div>
         <div class="channel-settings">
           <label>
-            <span>默认频道</span>
+            <span>Default channel</span>
             <select></select>
           </label>
           <label>
-            <span>默认发布</span>
+            <span>Default publish</span>
             <input type="checkbox" />
           </label>
         </div>

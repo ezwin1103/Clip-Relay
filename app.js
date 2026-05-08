@@ -3,7 +3,7 @@ const platforms = [
     id: "youtube",
     name: "YouTube Shorts",
     logo: "YT",
-    hint: "短标题 + 强钩子",
+    hint: "Short title plus a strong hook",
     limit: 100,
     channels: ["Jayden Studio", "Brand Shorts", "Creator Lab"],
     color: "#d64545",
@@ -13,7 +13,7 @@ const platforms = [
     id: "instagram",
     name: "Instagram Reels",
     logo: "IG",
-    hint: "生活化表达 + 标签",
+    hint: "Lifestyle tone plus light hashtag use",
     limit: 2200,
     channels: ["Official IG", "Founder Daily", "Product Reels"],
     color: "#b6509e",
@@ -23,7 +23,7 @@ const platforms = [
     id: "tiktok",
     name: "TikTok",
     logo: "TT",
-    hint: "更口语，更直接",
+    hint: "More conversational and direct",
     limit: 2200,
     channels: ["TikTok Main", "Growth Clips", "CN Overseas"],
     color: "#111111",
@@ -33,7 +33,7 @@ const platforms = [
     id: "twitter",
     name: "X / Twitter",
     logo: "X",
-    hint: "短文案 + 观点句",
+    hint: "Short copy with a clear point of view",
     limit: 280,
     channels: ["Personal X", "Company X", "Launch Updates"],
     color: "#356eb7",
@@ -95,16 +95,16 @@ async function apiRequest(path, options = {}) {
 }
 
 function normalizeServerAsset(asset) {
-  const readableSize = asset.size ? formatBytes(asset.size) : "未知大小";
+  const readableSize = asset.size ? formatBytes(asset.size) : "Unknown size";
   return {
     id: asset.id,
-    title: asset.title || asset.originalName || "本地上传视频",
-    desc: `${asset.ratio || "待检测"} · ${asset.duration || "待检测"} · ${readableSize}`,
-    duration: asset.duration || "待检测",
+    title: asset.title || asset.originalName || "Uploaded local video",
+    desc: `${asset.ratio || "Pending scan"} · ${asset.duration || "Pending scan"} · ${readableSize}`,
+    duration: asset.duration || "Pending scan",
     status: asset.status || "ready",
-    statusText: asset.statusText || "可发布",
-    ratio: asset.ratio || "待检测",
-    tags: asset.tags || ["本地上传"],
+    statusText: asset.statusText || "Ready to publish",
+    ratio: asset.ratio || "Pending scan",
+    tags: asset.tags || ["Local upload"],
     color: "#1f7a5c",
     url: asset.url,
     serverAsset: asset,
@@ -123,7 +123,7 @@ async function loadServerState() {
     renderHistoryLists();
     renderChannels();
   } catch (error) {
-    console.warn("无法读取本地后端状态，继续使用原型数据。", error);
+    console.warn("Could not load the local backend state. Falling back to prototype data.", error);
   }
 }
 
@@ -132,16 +132,16 @@ function taskToScheduleItem(task) {
   return {
     source: "server",
     id: task.id,
-    day: scheduleDate && !Number.isNaN(scheduleDate.getTime()) ? weekdayName(scheduleDate) : "待排期",
-    time: scheduleDate && !Number.isNaN(scheduleDate.getTime()) ? timeName(scheduleDate) : task.mode === "scheduled" ? "待定" : "立即",
-    title: task.title || task.asset?.title || "本地发布任务",
+    day: scheduleDate && !Number.isNaN(scheduleDate.getTime()) ? weekdayName(scheduleDate) : "Unscheduled",
+    time: scheduleDate && !Number.isNaN(scheduleDate.getTime()) ? timeName(scheduleDate) : task.mode === "scheduled" ? "TBD" : "Now",
+    title: task.title || task.asset?.title || "Local publish task",
     platforms: (task.platforms || []).map((item) => item.logo || item.name || item.id),
     status: statusLabel(task.status),
   };
 }
 
 function weekdayName(date) {
-  return ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][date.getDay()];
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()];
 }
 
 function timeName(date) {
@@ -149,11 +149,11 @@ function timeName(date) {
 }
 
 function statusLabel(status) {
-  if (status === "published") return "已发布";
-  if (status === "scheduled") return "已排期";
-  if (status === "publishing") return "发布中";
-  if (status === "failed") return "失败";
-  return "已入队";
+  if (status === "published") return "Published";
+  if (status === "scheduled") return "Scheduled";
+  if (status === "publishing") return "Publishing";
+  if (status === "failed") return "Failed";
+  return "Queued";
 }
 
 function platformText(base, platform) {
@@ -220,12 +220,12 @@ function optimizeCard(card, sourceText) {
   const base = (sourceText || caption.value || masterCaption.value).trim();
 
   if (!base) {
-    setAiHelper("请先输入统一文案，或在当前平台文案里写一点内容。");
+    setAiHelper("Write a master caption first, or add a bit of copy inside the current platform card.");
     return;
   }
 
   button.disabled = true;
-  button.textContent = "生成中";
+  button.textContent = "Working...";
   setAiHelper(`AI is localizing this for ${platform.name} in a US/EU English style...`, true);
 
   window.setTimeout(async () => {
@@ -249,7 +249,7 @@ function optimizeCard(card, sourceText) {
     caption.value = rewritten.caption;
     caption.dispatchEvent(new Event("input"));
     button.disabled = false;
-    button.textContent = "AI 优化";
+    button.textContent = "AI optimize";
     if (provider === "deepseek") setAiHelper(`DeepSeek localized the copy for ${platform.name}. You can still edit before publishing.`);
   }, 520);
 }
@@ -289,8 +289,8 @@ function renderPlatforms() {
     node.querySelector(".platform-logo").textContent = platform.logo;
     node.querySelector(".platform-logo").style.background = platform.color;
     node.querySelector("h3").textContent = platform.name;
-    node.querySelector("p").textContent = isConnected ? platform.hint : "未连接，暂不参与真实发布";
-    node.querySelector(".limit-pill").textContent = `${platform.limit} 字`;
+    node.querySelector("p").textContent = isConnected ? platform.hint : "Not connected, so real publishing is disabled for now";
+    node.querySelector(".limit-pill").textContent = `${platform.limit} chars`;
 
     const toggle = node.querySelector('input[type="checkbox"]');
     const select = node.querySelector("select");
@@ -301,14 +301,14 @@ function renderPlatforms() {
 
     toggle.checked = isConnected;
     node.classList.toggle("disabled", !isConnected);
-    const channelOptions = connectedChannel?.displayName ? [connectedChannel.displayName] : ["待连接"];
+    const channelOptions = connectedChannel?.displayName ? [connectedChannel.displayName] : ["Not connected"];
     channelOptions.forEach((channel) => {
       const option = document.createElement("option");
       option.textContent = channel;
       select.appendChild(option);
     });
 
-    title.placeholder = `${platform.name} 标题`;
+    title.placeholder = `${platform.name} title`;
 
     const refreshCount = () => {
       const length = caption.value.length;
@@ -348,9 +348,9 @@ function updateSummary() {
   const ready = state.hasVideo && selected.length > 0 && readyCards.length === selected.length;
 
   document.querySelector("#summaryPlatforms").textContent = `${selected.length} / ${platforms.length}`;
-  document.querySelector("#summaryReady").textContent = ready ? "可分发" : "待完善";
+  document.querySelector("#summaryReady").textContent = ready ? "Ready to publish" : "Needs review";
   document.querySelector("#summaryMode").textContent =
-    state.mode === "now" ? "立即发布" : document.querySelector("#scheduleAt").value || "定时发布";
+    state.mode === "now" ? "Publish now" : document.querySelector("#scheduleAt").value || "Scheduled";
 }
 
 function handleFile(file) {
@@ -379,17 +379,17 @@ async function uploadVideo(file) {
   form.append("video", file);
   form.append("title", file.name);
 
-  document.querySelector("#summaryReady").textContent = "上传中";
+  document.querySelector("#summaryReady").textContent = "Uploading";
   try {
     const data = await apiRequest("/api/uploads", { method: "POST", body: form });
     state.uploadedAsset = data.asset;
     assets = [normalizeServerAsset(data.asset), ...assets.filter((asset) => asset.id !== data.asset.id)];
     renderAssets();
     updateSummary();
-    setAiHelper("视频已保存到本地素材库，可以继续 AI 优化文案或保存草稿。");
+    setAiHelper("The video has been saved to the local asset library. You can optimize the copy or save a draft next.");
   } catch (error) {
-    document.querySelector("#summaryReady").textContent = "上传失败";
-    setAiHelper(`本地上传失败：${error.message}`);
+    document.querySelector("#summaryReady").textContent = "Upload failed";
+    setAiHelper(`Local upload failed: ${error.message}`);
   }
 }
 
@@ -398,7 +398,7 @@ function applyMasterCaption() {
     const platform = platforms.find((item) => item.id === card.dataset.platform);
     const title = card.querySelector('input[type="text"]');
     const caption = card.querySelector("textarea");
-    title.value = masterCaption.value.trim().slice(0, 48) || `${platform.name} 新视频`;
+    title.value = masterCaption.value.trim().slice(0, 48) || `${platform.name} new post`;
     caption.value = platformText(masterCaption.value, platform);
     caption.dispatchEvent(new Event("input"));
   });
@@ -406,7 +406,7 @@ function applyMasterCaption() {
 
 function resetQueue() {
   window.clearInterval(state.queueTimer);
-  queueList.innerHTML = '<p class="queue-empty">暂无任务。上传视频并点击模拟分发后，会看到平台队列。</p>';
+  queueList.innerHTML = '<p class="queue-empty">No tasks yet. Upload a video and create a publish task to see the queue.</p>';
 }
 
 async function publishAll() {
@@ -414,14 +414,14 @@ async function publishAll() {
   resetQueue();
   queueList.innerHTML = "";
   if (!state.hasVideo || cards.length === 0) {
-    queueList.innerHTML = '<p class="queue-empty">请先上传视频，并至少选择一个已连接的发布平台。</p>';
+    queueList.innerHTML = '<p class="queue-empty">Upload a video first and select at least one connected platform.</p>';
     return;
   }
   const incomplete = cards.some((card) => {
     return !card.querySelector('input[type="text"]').value.trim() || !card.querySelector("textarea").value.trim();
   });
   if (incomplete) {
-    queueList.innerHTML = '<p class="queue-empty">请先补齐已选平台的标题和文案，或使用 AI 优化全部平台。</p>';
+    queueList.innerHTML = '<p class="queue-empty">Complete the title and caption for every selected platform, or use AI to optimize all of them.</p>';
     return;
   }
 
@@ -432,7 +432,7 @@ async function publishAll() {
     row.innerHTML = `
       <span class="queue-name">${platform.name}</span>
       <div class="progress"><span></span></div>
-      <span class="queue-status">创建中</span>
+      <span class="queue-status">Creating</span>
     `;
     queueList.appendChild(row);
     return { row, platform };
@@ -444,15 +444,15 @@ async function publishAll() {
       row.querySelector(".progress span").style.width = "100%";
       const status = row.querySelector(".queue-status");
       if (isPlatformConnected(platform.id)) {
-        status.innerHTML = `<button class="tiny-button queue-publish" type="button">发布</button>`;
+        status.innerHTML = `<button class="tiny-button queue-publish" type="button">Publish</button>`;
         status.querySelector("button").addEventListener("click", () => publishTaskToPlatform(task.id, platform.id));
       } else {
-        status.textContent = "待接入";
+        status.textContent = "Coming soon";
       }
     });
-    setAiHelper("发布任务已创建。已连接的平台可以直接点击发布。");
+    setAiHelper("The publish task is ready. You can click Publish on any connected platform.");
   } catch (error) {
-    queueList.innerHTML = `<p class="queue-empty">任务创建失败：${escapeHtml(error.message)}</p>`;
+    queueList.innerHTML = `<p class="queue-empty">Could not create the task: ${escapeHtml(error.message)}</p>`;
   }
 }
 
@@ -507,7 +507,7 @@ function renderAssets() {
 
   assetGrid.innerHTML = "";
   if (!filtered.length) {
-    assetGrid.innerHTML = '<p class="queue-empty">没有找到匹配素材。</p>';
+    assetGrid.innerHTML = '<p class="queue-empty">No matching assets found.</p>';
     return;
   }
 
@@ -564,15 +564,15 @@ async function deleteAsset(asset) {
     await apiRequest(`/api/assets/${asset.id}`, { method: "DELETE" });
     state.selectedAssets.delete(asset.id);
     await loadServerState();
-    setAiHelper("素材已从本地库删除。");
+    setAiHelper("The asset has been removed from the local library.");
   } catch (error) {
-    setAiHelper(`素材删除失败：${error.message}`);
+    setAiHelper(`Could not delete the asset: ${error.message}`);
   }
 }
 
 function renderSchedule() {
   if (!calendarGrid) return;
-  const days = ["待排期", "周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+  const days = ["Unscheduled", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   calendarGrid.innerHTML = "";
   days.forEach((day) => {
     const column = document.createElement("article");
@@ -581,7 +581,7 @@ function renderSchedule() {
     column.innerHTML = `<h3>${day}</h3><div class="day-stack"></div>`;
     const stack = column.querySelector(".day-stack");
     if (!dayItems.length) {
-      stack.innerHTML = '<p class="empty-day">暂无发布</p>';
+      stack.innerHTML = '<p class="empty-day">No posts scheduled</p>';
     } else {
       dayItems.forEach((item) => {
         const task = document.createElement("div");
@@ -596,11 +596,11 @@ function renderSchedule() {
     }
     calendarGrid.appendChild(column);
   });
-  document.querySelector("#scheduleCount").textContent = `${scheduleItems.length} 个任务`;
-  const reminders = scheduleItems.filter((item) => item.status !== "已发布");
+  document.querySelector("#scheduleCount").textContent = `${scheduleItems.length} tasks`;
+  const reminders = scheduleItems.filter((item) => item.status !== "Published");
   reminderList.innerHTML = reminders.length
     ? reminders.map((item) => `<div class="reminder-item"><strong>${escapeHtml(item.title)}</strong><span>${item.day} ${item.time} · ${item.status}</span></div>`).join("")
-    : '<p class="queue-empty">暂无待处理任务。</p>';
+    : '<p class="queue-empty">No pending tasks.</p>';
 }
 
 function renderHistoryLists() {
@@ -610,9 +610,9 @@ function renderHistoryLists() {
 
 function renderDraftList() {
   const drafts = state.db.drafts || [];
-  document.querySelector("#draftCount").textContent = `${drafts.length} 条`;
+  document.querySelector("#draftCount").textContent = `${drafts.length} items`;
   if (!drafts.length) {
-    draftList.innerHTML = '<p class="queue-empty">暂无草稿。保存一次发布任务后会出现在这里。</p>';
+    draftList.innerHTML = '<p class="queue-empty">No drafts yet. Saved work will appear here.</p>';
     return;
   }
   draftList.innerHTML = "";
@@ -622,14 +622,14 @@ function renderDraftList() {
     item.innerHTML = `
       <div class="history-main">
         <div>
-          <strong>${escapeHtml(draft.title || "未命名草稿")}</strong>
-          <p>${formatDate(draft.updatedAt)} · ${(draft.platforms || []).filter((platform) => platform.selected).length} 个平台</p>
+          <strong>${escapeHtml(draft.title || "Untitled draft")}</strong>
+          <p>${formatDate(draft.updatedAt)} · ${(draft.platforms || []).filter((platform) => platform.selected).length} platforms</p>
         </div>
-        <span class="asset-status" data-status="draft">草稿</span>
+        <span class="asset-status" data-status="draft">Draft</span>
       </div>
       <div class="history-actions">
-        <button class="tiny-button load-draft" type="button">继续编辑</button>
-        <button class="tiny-button danger-button delete-draft" type="button">删除</button>
+        <button class="tiny-button load-draft" type="button">Resume editing</button>
+        <button class="tiny-button danger-button delete-draft" type="button">Delete</button>
       </div>
     `;
     item.querySelector(".load-draft").addEventListener("click", () => loadDraft(draft));
@@ -640,9 +640,9 @@ function renderDraftList() {
 
 function renderTaskList() {
   const tasks = state.db.tasks || [];
-  document.querySelector("#taskCount").textContent = `${tasks.length} 条`;
+  document.querySelector("#taskCount").textContent = `${tasks.length} items`;
   if (!tasks.length) {
-    taskList.innerHTML = '<p class="queue-empty">暂无发布任务。点击模拟分发后会写入这里。</p>';
+    taskList.innerHTML = '<p class="queue-empty">No publish tasks yet. New tasks will appear here.</p>';
     return;
   }
   taskList.innerHTML = "";
@@ -659,7 +659,7 @@ function renderTaskList() {
     item.innerHTML = `
       <div class="history-main">
         <div>
-          <strong>${escapeHtml(task.title || "本地发布任务")}</strong>
+          <strong>${escapeHtml(task.title || "Local publish task")}</strong>
           <p>${formatDate(task.createdAt || task.updatedAt)} · ${(task.platforms || []).map((platform) => platform.logo || platform.name).join(" · ")}</p>
           ${platformProgress}
           ${platformLinks}
@@ -668,10 +668,10 @@ function renderTaskList() {
         <span class="asset-status" data-status="${task.status === "published" ? "ready" : task.status === "failed" ? "review" : "draft"}">${statusText}</span>
       </div>
       <div class="history-actions">
-        <button class="tiny-button load-task" type="button">复用任务</button>
+        <button class="tiny-button load-task" type="button">Reuse task</button>
         ${platformButtons}
-        <button class="tiny-button mark-task" type="button">标记已发布</button>
-        <button class="tiny-button danger-button delete-task" type="button">删除</button>
+        <button class="tiny-button mark-task" type="button">Mark published</button>
+        <button class="tiny-button danger-button delete-task" type="button">Delete</button>
       </div>
     `;
     item.querySelector(".load-task").addEventListener("click", () => loadDraft(task));
@@ -688,27 +688,27 @@ function platformProgressHtml(task, platform) {
   const result = task.publishResults?.[platform.id];
   if (result?.status !== "publishing") return "";
   const progress = Number(result.progress || 0);
-  return `<p class="upload-progress-text">${escapeHtml(platform.name)} 上传中：${progress}% · ${formatBytes(result.uploadedBytes || 0)} / ${formatBytes(result.totalBytes || task.asset?.size || 0)}</p>
+  return `<p class="upload-progress-text">${escapeHtml(platform.name)} uploading: ${progress}% · ${formatBytes(result.uploadedBytes || 0)} / ${formatBytes(result.totalBytes || task.asset?.size || 0)}</p>
     <div class="progress upload-progress" aria-label="${escapeHtml(platform.name)} upload progress"><span style="width:${Math.max(2, Math.min(progress, 100))}%"></span></div>`;
 }
 
 function platformResultLink(task, platform) {
   const result = task.publishResults?.[platform.id];
   if (!result?.url) return "";
-  return `<p><a href="${escapeHtml(result.url)}" target="_blank" rel="noreferrer">打开 ${escapeHtml(platform.name)} 内容</a></p>`;
+  return `<p><a href="${escapeHtml(result.url)}" target="_blank" rel="noreferrer">Open ${escapeHtml(platform.name)} post</a></p>`;
 }
 
 function platformErrorHtml(task, platform) {
   const result = task.publishResults?.[platform.id];
   if (!result?.error) return "";
-  return `<p class="error-text">${escapeHtml(platform.name)}：${escapeHtml(result.error)}</p>`;
+  return `<p class="error-text">${escapeHtml(platform.name)}: ${escapeHtml(result.error)}</p>`;
 }
 
 function platformPublishButtonHtml(task, platform) {
   if (!isPlatformConnected(platform.id)) return "";
   const result = task.publishResults?.[platform.id];
   const disabled = !task.asset?.filename || result?.status === "publishing";
-  const label = result?.status === "publishing" ? "发布中" : result?.status === "published" ? `重发 ${platform.logo}` : `发布 ${platform.logo}`;
+  const label = result?.status === "publishing" ? "Publishing" : result?.status === "published" ? `Republish ${platform.logo}` : `Publish ${platform.logo}`;
   return `<button class="tiny-button platform-task" type="button" data-platform="${platform.id}" ${disabled ? "disabled" : ""}>${label}</button>`;
 }
 
@@ -717,7 +717,7 @@ function escapeHtml(value) {
 }
 
 function formatDate(value) {
-  if (!value) return "刚刚";
+  if (!value) return "Just now";
   return new Intl.DateTimeFormat("zh-CN", {
     month: "2-digit",
     day: "2-digit",
@@ -731,7 +731,7 @@ function loadDraft(draft) {
   state.mode = draft.mode || "now";
   state.uploadedAsset = draft.asset || null;
   state.hasVideo = Boolean(draft.asset || draft.title);
-  document.querySelector("#summaryVideo").textContent = draft.title || draft.asset?.title || "草稿素材";
+  document.querySelector("#summaryVideo").textContent = draft.title || draft.asset?.title || "Draft asset";
   document.querySelector("#scheduleAt").value = draft.scheduleAt || "";
 
   if (draft.asset) {
@@ -752,7 +752,7 @@ function loadDraft(draft) {
   });
   switchView("publish");
   updateSummary();
-  setAiHelper("草稿已载入，可以继续编辑或分发。");
+  setAiHelper("Draft loaded. You can keep editing or publish from here.");
 }
 
 async function deleteDraft(id) {
@@ -760,7 +760,7 @@ async function deleteDraft(id) {
     await apiRequest(`/api/drafts/${id}`, { method: "DELETE" });
     await loadServerState();
   } catch (error) {
-    setAiHelper(`草稿删除失败：${error.message}`);
+    setAiHelper(`Could not delete the draft: ${error.message}`);
   }
 }
 
@@ -769,7 +769,7 @@ async function updateTaskStatus(id, status) {
     await apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
     await loadServerState();
   } catch (error) {
-    setAiHelper(`任务状态更新失败：${error.message}`);
+    setAiHelper(`Could not update the task status: ${error.message}`);
   }
 }
 
@@ -778,7 +778,7 @@ async function deleteTask(id) {
     await apiRequest(`/api/tasks/${id}`, { method: "DELETE" });
     await loadServerState();
   } catch (error) {
-    setAiHelper(`任务删除失败：${error.message}`);
+    setAiHelper(`Could not delete the task: ${error.message}`);
   }
 }
 
@@ -789,12 +789,12 @@ async function publishTaskToYouTube(id) {
 async function publishTaskToPlatform(id, platformId) {
   const platform = platforms.find((item) => item.id === platformId);
   try {
-    setAiHelper(`${platform?.name || platformId} 上传已在后台开始。任务列表里会显示进度。`, true);
+    setAiHelper(`${platform?.name || platformId} upload has started in the background. Progress will appear in task history.`, true);
     await apiRequest(`/api/publish/${platformId}/${id}`, { method: "POST" });
     await loadServerState();
     pollPlatformTask(id, platformId);
   } catch (error) {
-    setAiHelper(`${platform?.name || platformId} 发布失败：${error.message}`);
+    setAiHelper(`${platform?.name || platformId} publish failed: ${error.message}`);
   }
 }
 
@@ -810,23 +810,23 @@ function pollPlatformTask(id, platformId, attempt = 0) {
       const task = (state.db.tasks || []).find((item) => item.id === id);
       const result = task?.publishResults?.[platformId];
       if (result?.status === "published") {
-        setAiHelper(`${platform?.name || platformId} 发布完成：${result.url || result.videoId || result.publishId || result.postId || "已提交"}`);
+        setAiHelper(`${platform?.name || platformId} finished: ${result.url || result.videoId || result.publishId || result.postId || "submitted"}`);
         return;
       }
       if (result?.status === "failed") {
-        setAiHelper(`${platform?.name || platformId} 发布失败：${result.error}`);
+        setAiHelper(`${platform?.name || platformId} publish failed: ${result.error}`);
         return;
       }
       if (attempt >= 240) {
-        setAiHelper(`${platform?.name || platformId} 上传仍在进行。你可以继续看任务历史里的最新进度。`);
+        setAiHelper(`${platform?.name || platformId} is still uploading. Check task history for the latest status.`);
         return;
       }
       const progress = Number(result?.progress || 0);
       const detail = progress ? ` · ${progress}%` : "";
-      setAiHelper(`${platform?.name || platformId} 上传中${detail} · 已运行约 ${Math.round(((attempt + 1) * 3) / 60)} 分钟`, true);
+      setAiHelper(`${platform?.name || platformId} uploading${detail} · running for about ${Math.round(((attempt + 1) * 3) / 60)} min`, true);
       pollPlatformTask(id, platformId, attempt + 1);
     } catch (error) {
-      setAiHelper(`刷新发布状态失败：${error.message}`);
+      setAiHelper(`Could not refresh publish status: ${error.message}`);
     }
   }, 3000);
 }
@@ -844,12 +844,12 @@ function renderChannels() {
     node.querySelector(".platform-logo").textContent = platform.logo;
     node.querySelector(".platform-logo").style.background = platform.color;
     node.querySelector("h3").textContent = platform.name;
-    node.querySelector("p").textContent = connected ? `已连接：${serverChannel.displayName || platform.name}` : channelConnectionText(platform.id);
-    node.querySelector(".channel-state").textContent = connected ? "已连接" : "待连接";
+    node.querySelector("p").textContent = connected ? `Connected: ${serverChannel.displayName || platform.name}` : channelConnectionText(platform.id);
+    node.querySelector(".channel-state").textContent = connected ? "Connected" : "Not connected";
     node.querySelector(".channel-state").classList.toggle("pending", !connected);
-    node.querySelector(".channel-note").textContent = connected ? `授权时间：${formatDate(serverChannel.connectedAt)}` : channelSetupText(platform.id);
+    node.querySelector(".channel-note").textContent = connected ? `Authorized: ${formatDate(serverChannel.connectedAt)}` : channelSetupText(platform.id);
     const actionButton = node.querySelector(".tiny-button");
-    actionButton.textContent = connected ? "断开连接" : channelActionText(platform.id);
+    actionButton.textContent = connected ? "Disconnect" : channelActionText(platform.id);
     const select = node.querySelector("select");
     const channelOptions = connected && serverChannel.displayName ? [serverChannel.displayName] : platform.channels;
     channelOptions.forEach((channel) => {
@@ -878,40 +878,40 @@ async function disconnectChannel(platformId, platformName) {
   try {
     await apiRequest(`/api/channels/${platformId}`, { method: "DELETE" });
     await loadServerState();
-    setAiHelper(`${platformName} 已断开。现在可以重新连接并录制完整流程。`);
+    setAiHelper(`${platformName} has been disconnected. You can reconnect now and record the full flow.`);
   } catch (error) {
-    setAiHelper(`${platformName} 断开失败：${error.message}`);
+    setAiHelper(`${platformName} disconnect failed: ${error.message}`);
   }
 }
 
 function channelConnectionText(platformId) {
-  if (platformId === "youtube") return "可连接 Google OAuth";
-  if (platformId === "instagram") return "可连接 Meta OAuth";
-  if (platformId === "tiktok") return "可连接 TikTok OAuth";
-  return "待接入 OAuth 配置";
+  if (platformId === "youtube") return "Google OAuth is available";
+  if (platformId === "instagram") return "Meta OAuth is available";
+  if (platformId === "tiktok") return "TikTok OAuth is available";
+  return "OAuth setup coming soon";
 }
 
 function channelSetupText(platformId) {
-  if (platformId === "youtube") return "需要 Google Client ID / Secret";
-  if (platformId === "instagram") return "需要 Meta App ID / Secret，且账号为 Business/Creator";
-  if (platformId === "tiktok") return "需要 TikTok Client Key / Secret 和 Content Posting API 权限";
-  return "下一阶段接入";
+  if (platformId === "youtube") return "Requires Google Client ID and Client Secret";
+  if (platformId === "instagram") return "Requires Meta App ID and Secret, plus a Business or Creator account";
+  if (platformId === "tiktok") return "Requires TikTok Client Key, Client Secret, and Content Posting API access";
+  return "Integration coming in a later phase";
 }
 
 function channelActionText(platformId) {
-  if (platformId === "youtube") return "连接 YouTube";
-  if (platformId === "instagram") return "连接 Instagram";
-  if (platformId === "tiktok") return "连接 TikTok";
-  return "待接入";
+  if (platformId === "youtube") return "Connect YouTube";
+  if (platformId === "instagram") return "Connect Instagram";
+  if (platformId === "tiktok") return "Connect TikTok";
+  return "Coming soon";
 }
 
 function updateChannelSummary() {
   const connected = [...document.querySelectorAll(".channel-card")].filter((card) => card.dataset.connected === "true").length;
   document.querySelector("#connectedCount").textContent = `${connected} / ${platforms.length}`;
-  document.querySelector("#channelNeeds").textContent = `${platforms.length - connected} 项`;
-  document.querySelector("#defaultPublishCount").textContent = `${connected} 个频道`;
-  document.querySelector("#sidebarConnected").textContent = `${connected} 个频道在线`;
-  document.querySelector("#sidebarMode").textContent = connected ? "可发布到已连接频道" : "本地工作台";
+  document.querySelector("#channelNeeds").textContent = `${platforms.length - connected} items`;
+  document.querySelector("#defaultPublishCount").textContent = `${connected} channels`;
+  document.querySelector("#sidebarConnected").textContent = `${connected} channels online`;
+  document.querySelector("#sidebarMode").textContent = connected ? "Ready for connected channels" : "Local workspace";
 }
 
 videoInput.addEventListener("change", (event) => handleFile(event.target.files[0]));
@@ -946,16 +946,16 @@ document.querySelector("#clearCaptions").addEventListener("click", () => {
 document.querySelector("#publishAll").addEventListener("click", publishAll);
 document.querySelector("#resetQueue").addEventListener("click", resetQueue);
 document.querySelector("#saveDraft").addEventListener("click", () => {
-  document.querySelector("#summaryReady").textContent = "保存中";
+  document.querySelector("#summaryReady").textContent = "Saving";
   apiRequest("/api/draft", { method: "POST", body: JSON.stringify(buildDraftPayload()) })
     .then(() => {
-      document.querySelector("#summaryReady").textContent = "草稿已保存";
+      document.querySelector("#summaryReady").textContent = "Draft saved";
       loadServerState();
       window.setTimeout(updateSummary, 1400);
     })
     .catch((error) => {
-      document.querySelector("#summaryReady").textContent = "保存失败";
-      setAiHelper(`草稿保存失败：${error.message}`);
+      document.querySelector("#summaryReady").textContent = "Save failed";
+      setAiHelper(`Could not save the draft: ${error.message}`);
     });
 });
 document.querySelector("#scheduleAt").addEventListener("input", updateSummary);
@@ -987,7 +987,7 @@ document.querySelector("#libraryUseSelected").addEventListener("click", () => {
   const asset = assets.find((item) => state.selectedAssets.has(item.id)) || assets[0];
   if (!asset) return;
   useAsset(asset);
-  if (state.selectedAssets.size > 1) document.querySelector("#summaryVideo").textContent = `${state.selectedAssets.size} 个素材已选择`;
+  if (state.selectedAssets.size > 1) document.querySelector("#summaryVideo").textContent = `${state.selectedAssets.size} assets selected`;
 });
 
 document.querySelector("#scheduleNewTask").addEventListener("click", () => switchView("publish"));

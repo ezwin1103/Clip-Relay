@@ -219,11 +219,11 @@ async function startYouTubeAuth(res) {
     return sendHtml(
       res,
       `<main style="font-family:system-ui;padding:32px;line-height:1.6;max-width:760px">
-        <h1>需要配置 Google OAuth</h1>
-        <p>请在 <code>.env</code> 中填入 <code>GOOGLE_CLIENT_ID</code> 和 <code>GOOGLE_CLIENT_SECRET</code>。</p>
-        <p>Google Cloud Console 里的 Authorized redirect URI 请填写：</p>
+        <h1>Google OAuth is required</h1>
+        <p>Fill in <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code> inside <code>.env</code>.</p>
+        <p>Use this Authorized redirect URI in Google Cloud Console:</p>
         <pre style="background:#f2f4f3;padding:12px;border-radius:8px">${youtubeRedirectUri}</pre>
-        <p><a href="/">返回 ClipRelay</a></p>
+        <p><a href="/">Return to ClipRelay</a></p>
       </main>`,
       400,
     );
@@ -253,16 +253,16 @@ async function finishYouTubeAuth(url, res) {
     const googleError = url.searchParams.get("error");
     const googleErrorDescription = url.searchParams.get("error_description");
     if (googleError) {
-      return sendAuthError(res, `Google 授权失败：${googleError}`, googleErrorDescription || "请确认测试用户、scope 和 OAuth 配置。");
+      return sendAuthError(res, `Google authorization failed: ${googleError}`, googleErrorDescription || "Check your test users, scopes, and OAuth configuration.");
     }
 
     const code = url.searchParams.get("code");
     const returnedState = url.searchParams.get("state");
-    if (!code) return sendAuthError(res, "Google 没有返回授权 code。", "请重新从频道连接页发起授权。");
+    if (!code) return sendAuthError(res, "Google did not return an authorization code.", "Start the connection flow again from the channels screen.");
 
     const db = await readDb();
     if (!returnedState || (returnedState !== db.oauthStates?.youtube && !verifyOAuthState(returnedState, "youtube"))) {
-      return sendAuthError(res, "OAuth state 校验失败。", "请回到 ClipRelay 重新点击连接 YouTube。");
+      return sendAuthError(res, "OAuth state validation failed.", "Return to ClipRelay and try connecting YouTube again.");
     }
 
     const tokenData = await exchangeGoogleCode(code);
@@ -287,14 +287,14 @@ async function finishYouTubeAuth(url, res) {
     sendHtml(
       res,
       `<main style="font-family:system-ui;padding:32px;line-height:1.6;max-width:760px">
-        <h1>YouTube 已连接</h1>
-        <p>已连接频道：<strong>${escapeHtml(channel.displayName)}</strong></p>
-        <p><a href="/">返回 ClipRelay</a></p>
+        <h1>YouTube connected</h1>
+        <p>Connected channel: <strong>${escapeHtml(channel.displayName)}</strong></p>
+        <p><a href="/">Return to ClipRelay</a></p>
       </main>`,
     );
   } catch (error) {
     console.error("YouTube OAuth callback failed:", error);
-    sendAuthError(res, "YouTube 连接失败", error.message || "未知错误");
+    sendAuthError(res, "YouTube connection failed", error.message || "Unknown error");
   }
 }
 
@@ -303,11 +303,11 @@ async function startInstagramAuth(res) {
     return sendHtml(
       res,
       `<main style="font-family:system-ui;padding:32px;line-height:1.6;max-width:760px">
-        <h1>需要配置 Meta OAuth</h1>
-        <p>请在 <code>.env</code> 中填入 <code>META_APP_ID</code> 和 <code>META_APP_SECRET</code>。</p>
-        <p>Meta App 的 Valid OAuth Redirect URI 请填写：</p>
+        <h1>Meta OAuth is required</h1>
+        <p>Fill in <code>META_APP_ID</code> and <code>META_APP_SECRET</code> inside <code>.env</code>.</p>
+        <p>Use this Valid OAuth Redirect URI in your Meta app:</p>
         <pre style="background:#f2f4f3;padding:12px;border-radius:8px">${instagramRedirectUri}</pre>
-        <p><a href="/">返回 ClipRelay</a></p>
+        <p><a href="/">Return to ClipRelay</a></p>
       </main>`,
       400,
     );
@@ -333,15 +333,15 @@ async function finishInstagramAuth(url, res) {
   try {
     const metaError = url.searchParams.get("error");
     const metaErrorDescription = url.searchParams.get("error_description");
-    if (metaError) return sendAuthError(res, `Instagram 授权失败：${metaError}`, metaErrorDescription || "请确认 Meta App 权限和测试用户。");
+    if (metaError) return sendAuthError(res, `Instagram authorization failed: ${metaError}`, metaErrorDescription || "Check your Meta app permissions and test users.");
 
     const code = url.searchParams.get("code");
     const returnedState = url.searchParams.get("state");
-    if (!code) return sendAuthError(res, "Meta 没有返回授权 code。", "请重新从频道连接页发起授权。");
+    if (!code) return sendAuthError(res, "Meta did not return an authorization code.", "Start the connection flow again from the channels screen.");
 
     const db = await readDb();
     if (!returnedState || (returnedState !== db.oauthStates?.instagram && !verifyOAuthState(returnedState, "instagram"))) {
-      return sendAuthError(res, "OAuth state 校验失败。", "请回到 ClipRelay 重新点击连接 Instagram。");
+      return sendAuthError(res, "OAuth state validation failed.", "Return to ClipRelay and try connecting Instagram again.");
     }
 
     const tokenData = await exchangeInstagramCode(code);
@@ -367,14 +367,14 @@ async function finishInstagramAuth(url, res) {
     sendHtml(
       res,
       `<main style="font-family:system-ui;padding:32px;line-height:1.6;max-width:760px">
-        <h1>Instagram 已连接</h1>
-        <p>已连接账号：<strong>${escapeHtml(channel.displayName)}</strong></p>
-        <p><a href="/">返回 ClipRelay</a></p>
+        <h1>Instagram connected</h1>
+        <p>Connected account: <strong>${escapeHtml(channel.displayName)}</strong></p>
+        <p><a href="/">Return to ClipRelay</a></p>
       </main>`,
     );
   } catch (error) {
     console.error("Instagram OAuth callback failed:", error);
-    sendAuthError(res, "Instagram 连接失败", error.message || "未知错误");
+    sendAuthError(res, "Instagram connection failed", error.message || "Unknown error");
   }
 }
 
@@ -383,11 +383,11 @@ async function startTikTokAuth(res) {
     return sendHtml(
       res,
       `<main style="font-family:system-ui;padding:32px;line-height:1.6;max-width:760px">
-        <h1>需要配置 TikTok OAuth</h1>
-        <p>请在 <code>.env</code> 中填入 <code>TIKTOK_CLIENT_KEY</code> 和 <code>TIKTOK_CLIENT_SECRET</code>。</p>
-        <p>TikTok App 的 Redirect URI 请填写：</p>
+        <h1>TikTok OAuth is required</h1>
+        <p>Fill in <code>TIKTOK_CLIENT_KEY</code> and <code>TIKTOK_CLIENT_SECRET</code> inside <code>.env</code>.</p>
+        <p>Use this Redirect URI in your TikTok app:</p>
         <pre style="background:#f2f4f3;padding:12px;border-radius:8px">${tiktokRedirectUri}</pre>
-        <p><a href="/">返回 ClipRelay</a></p>
+        <p><a href="/">Return to ClipRelay</a></p>
       </main>`,
       400,
     );
@@ -413,15 +413,15 @@ async function finishTikTokAuth(url, res) {
   try {
     const tiktokError = url.searchParams.get("error");
     const tiktokErrorDescription = url.searchParams.get("error_description");
-    if (tiktokError) return sendAuthError(res, `TikTok 授权失败：${tiktokError}`, tiktokErrorDescription || "请确认 TikTok App 权限和测试用户。");
+    if (tiktokError) return sendAuthError(res, `TikTok authorization failed: ${tiktokError}`, tiktokErrorDescription || "Check your TikTok app permissions and test users.");
 
     const code = url.searchParams.get("code");
     const returnedState = url.searchParams.get("state");
-    if (!code) return sendAuthError(res, "TikTok 没有返回授权 code。", "请重新从频道连接页发起授权。");
+    if (!code) return sendAuthError(res, "TikTok did not return an authorization code.", "Start the connection flow again from the channels screen.");
 
     const db = await readDb();
     if (!returnedState || (returnedState !== db.oauthStates?.tiktok && !verifyOAuthState(returnedState, "tiktok"))) {
-      return sendAuthError(res, "OAuth state 校验失败。", "请回到 ClipRelay 重新点击连接 TikTok。");
+      return sendAuthError(res, "OAuth state validation failed.", "Return to ClipRelay and try connecting TikTok again.");
     }
 
     const tokenData = await exchangeTikTokCode(code);
@@ -446,14 +446,14 @@ async function finishTikTokAuth(url, res) {
     sendHtml(
       res,
       `<main style="font-family:system-ui;padding:32px;line-height:1.6;max-width:760px">
-        <h1>TikTok 已连接</h1>
-        <p>已连接账号：<strong>${escapeHtml(channel.displayName)}</strong></p>
-        <p><a href="/">返回 ClipRelay</a></p>
+        <h1>TikTok connected</h1>
+        <p>Connected account: <strong>${escapeHtml(channel.displayName)}</strong></p>
+        <p><a href="/">Return to ClipRelay</a></p>
       </main>`,
     );
   } catch (error) {
     console.error("TikTok OAuth callback failed:", error);
-    sendAuthError(res, "TikTok 连接失败", error.message || "未知错误");
+    sendAuthError(res, "TikTok connection failed", error.message || "Unknown error");
   }
 }
 
@@ -463,8 +463,8 @@ function sendAuthError(res, title, detail) {
     `<main style="font-family:system-ui;padding:32px;line-height:1.6;max-width:820px">
       <h1>${escapeHtml(title)}</h1>
       <p>${escapeHtml(detail)}</p>
-      <p>你可以回到 ClipRelay 后重新点击连接。</p>
-      <p><a href="/">返回 ClipRelay</a></p>
+      <p>Return to ClipRelay and try connecting again.</p>
+      <p><a href="/">Return to ClipRelay</a></p>
     </main>`,
     400,
   );
@@ -512,7 +512,7 @@ async function fetchInstagramProfile(userAccessToken) {
   );
   const page = accounts.data?.find((item) => item.instagram_business_account) || accounts.data?.[0];
   if (!page?.instagram_business_account?.id) {
-    throw new Error("没有找到已连接的 Instagram Business/Creator 账号。请确认 Facebook Page 已绑定 Instagram 专业账号。");
+    throw new Error("No connected Instagram Business or Creator account was found. Confirm that your Facebook Page is linked to a professional Instagram account.");
   }
   const ig = page.instagram_business_account;
   return {
@@ -874,7 +874,7 @@ async function runYouTubeUpload(taskId) {
 
 function youtubeUploadErrorMessage(error) {
   if (error?.code === "ENOENT" || /no such file or directory/i.test(error?.message || "")) {
-    return "本地视频文件不存在了。请重新上传这个视频，再创建一次发布任务。";
+    return "The local video file no longer exists. Re-upload the video and create the publish task again.";
   }
   return error?.message || "YouTube upload failed";
 }
@@ -888,10 +888,10 @@ async function runInstagramUpload(taskId) {
   try {
     if (!channel?.externalId) throw new Error("Instagram channel is missing Business Account ID. Please reconnect Instagram.");
     if (!env.PUBLIC_ASSET_BASE_URL) {
-      throw new Error("Instagram Reels 发布需要公网 HTTPS 视频地址。请配置 PUBLIC_ASSET_BASE_URL，例如 Cloudflare Tunnel / S3 / R2 地址。");
+      throw new Error("Instagram Reels publishing requires a public HTTPS video URL. Set PUBLIC_ASSET_BASE_URL, such as a Cloudflare Tunnel, S3, or R2 URL.");
     }
     const videoUrl = `${env.PUBLIC_ASSET_BASE_URL.replace(/\/$/, "")}${task.asset.url}`;
-    await updatePlatformTaskProgress(taskId, "instagram", { status: "publishing", progress: 5, note: "已提交 Reels 创建容器" });
+    await updatePlatformTaskProgress(taskId, "instagram", { status: "publishing", progress: 5, note: "Reels container submitted" });
     const token = channel.pageAccessToken || channel.accessToken;
     const createBody = new URLSearchParams({
       media_type: "REELS",
@@ -937,13 +937,13 @@ async function waitForInstagramContainer(containerId, accessToken, onProgress) {
       `https://graph.facebook.com/v19.0/${containerId}?fields=status_code,status&access_token=${encodeURIComponent(accessToken)}`,
     );
     if (status.status_code === "FINISHED") {
-      await onProgress?.({ status: "publishing", progress: 85, note: "Reels 容器已处理完成" });
+      await onProgress?.({ status: "publishing", progress: 85, note: "Reels container finished processing" });
       return;
     }
     if (status.status_code === "ERROR" || status.status_code === "EXPIRED") {
       throw new Error(`Instagram container failed: ${status.status || status.status_code}`);
     }
-    await onProgress?.({ status: "publishing", progress: Math.min(80, 10 + attempt * 3), note: status.status || status.status_code || "处理中" });
+    await onProgress?.({ status: "publishing", progress: Math.min(80, 10 + attempt * 3), note: status.status || status.status_code || "Processing" });
     await delay(5000);
   }
   throw new Error("Instagram container processing timed out");
@@ -1305,10 +1305,10 @@ async function uploadVideo(req, res) {
     size: file.content.length,
     url: `/uploads/${filename}`,
     status: "ready",
-    statusText: "可发布",
-    ratio: parsed.fields.ratio || "待检测",
-    duration: parsed.fields.duration || "待检测",
-    tags: ["本地上传"],
+    statusText: "Ready to publish",
+    ratio: parsed.fields.ratio || "Pending scan",
+    duration: parsed.fields.duration || "Pending scan",
+    tags: ["Local upload"],
     createdAt: new Date().toISOString(),
   };
   db.assets.unshift(asset);
