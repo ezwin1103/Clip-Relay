@@ -960,8 +960,7 @@ async function runTikTokUpload(taskId) {
     const assetPath = join(uploadDir, task.asset.filename);
     const fileStat = await stat(assetPath);
     const totalBytes = fileStat.size;
-    const chunkSize = Math.min(8 * 1024 * 1024, totalBytes);
-    const totalChunkCount = Math.ceil(totalBytes / chunkSize);
+    const { chunkSize, totalChunkCount } = tiktokChunkPlan(totalBytes);
     await updatePlatformTaskProgress(taskId, "tiktok", { status: "publishing", progress: 0, uploadedBytes: 0, totalBytes });
     const init = await requestJson("https://open.tiktokapis.com/v2/post/publish/video/init/", {
       method: "POST",
@@ -994,6 +993,7 @@ async function runTikTokUpload(taskId) {
       mimeType: task.asset.mimeType || "video/mp4",
       totalBytes,
       chunkSize,
+      oversizedFinalChunk: true,
       onProgress: (progress) => updatePlatformTaskProgress(taskId, "tiktok", progress),
     });
     await updatePlatformTaskProgress(taskId, "tiktok", {
@@ -1014,13 +1014,27 @@ async function runTikTokUpload(taskId) {
   }
 }
 
-async function uploadGenericChunksWithCurl({ uploadUrl, assetPath, mimeType, totalBytes, chunkSize, onProgress }) {
+function tiktokChunkPlan(totalBytes) {
+  if (totalBytes <= 5 * 1024 * 1024) {
+    return { chunkSize: totalBytes, totalChunkCount: 1 };
+  }
+
+  const preferredChunkSize = 8 * 1024 * 1024;
+  const chunkSize = Math.min(preferredChunkSize, 64 * 1024 * 1024, totalBytes);
+  const totalChunkCount = Math.max(1, Math.floor(totalBytes / chunkSize));
+  return { chunkSize, totalChunkCount };
+}
+
+async function uploadGenericChunksWithCurl({ uploadUrl, assetPath, mimeType, totalBytes, chunkSize, oversizedFinalChunk = false, onProgress }) {
   const fd = openSync(assetPath, "r");
   let uploadedBytes = 0;
   try {
     while (uploadedBytes < totalBytes) {
       const start = uploadedBytes;
-      const end = Math.min(start + chunkSize, totalBytes) - 1;
+      let end = Math.min(start + chunkSize, totalBytes) - 1;
+      if (oversizedFinalChunk && totalBytes - start <= chunkSize * 2) {
+        end = totalBytes - 1;
+      }
       const size = end - start + 1;
       const buffer = Buffer.alloc(size);
       const bytesRead = readSync(fd, buffer, 0, size, start);
