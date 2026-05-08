@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { execFile } from "node:child_process";
 import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { openSync, readSync, closeSync } from "node:fs";
-import { createHmac } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { extname, join, normalize, relative } from "node:path";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
@@ -20,6 +20,7 @@ const appBaseUrl = env.APP_BASE_URL || `http://127.0.0.1:${port}`;
 const youtubeRedirectUri = `${appBaseUrl}/auth/youtube/callback`;
 const instagramRedirectUri = `${appBaseUrl}/auth/instagram/callback`;
 const tiktokRedirectUri = `${appBaseUrl}/auth/tiktok/callback`;
+const twitterRedirectUri = `${appBaseUrl}/auth/twitter/callback`;
 const outboundProxy = env.OUTBOUND_PROXY_URL || env.GOOGLE_PROXY_URL || "";
 const oauthStateSecret =
   env.OAUTH_STATE_SECRET || env.GOOGLE_CLIENT_SECRET || env.META_APP_SECRET || env.TIKTOK_CLIENT_SECRET || "cliprelay-local-state";
@@ -51,6 +52,8 @@ createServer(async (req, res) => {
     if (url.pathname === "/auth/instagram/callback" && req.method === "GET") return finishInstagramAuth(url, res);
     if (url.pathname === "/auth/tiktok" && req.method === "GET") return startTikTokAuth(res);
     if (url.pathname === "/auth/tiktok/callback" && req.method === "GET") return finishTikTokAuth(url, res);
+    if (url.pathname === "/auth/twitter" && req.method === "GET") return startTwitterAuth(res);
+    if (url.pathname === "/auth/twitter/callback" && req.method === "GET") return finishTwitterAuth(url, res);
     if (url.pathname === "/api/draft" && req.method === "POST") return saveDraft(req, res);
     if (url.pathname.startsWith("/api/drafts/") && req.method === "DELETE") return deleteDraft(url, res);
     if (url.pathname === "/api/uploads" && req.method === "POST") return uploadVideo(req, res);
@@ -152,6 +155,7 @@ function publicDb(db) {
     ...db,
     channels: publicChannels(db.channels || []),
     oauthStates: undefined,
+    oauthPkce: undefined,
   };
 }
 
@@ -207,6 +211,10 @@ function getInstagramScopes() {
 
 function missingTikTokCredentials() {
   return !env.TIKTOK_CLIENT_KEY || !env.TIKTOK_CLIENT_SECRET;
+}
+
+function missingTwitterCredentials() {
+  return !env.X_CLIENT_ID || !env.X_CLIENT_SECRET;
 }
 
 function createOAuthState(provider) {
@@ -428,6 +436,92 @@ async function startTikTokAuth(res) {
   res.end();
 }
 
+async function startTwitterAuth(res) {
+  if (missingTwitterCredentials()) {
+    return sendHtml(
+      res,
+      `<main style="font-family:system-ui;padding:32px;line-height:1.6;max-width:760px">
+        <h1>X OAuth is required</h1>
+        <p>Fill in <code>X_CLIENT_ID</code> and <code>X_CLIENT_SECRET</code> inside <code>.env</code>.</p>
+        <p>Use this Callback URI in your X app:</p>
+        <pre style="background:#f2f4f3;padding:12px;border-radius:8px">${twitterRedirectUri}</pre>
+        <p><a href="/">Return to ClipRelay</a></p>
+      </main>`,
+      400,
+    );
+  }
+
+  const db = await readDb();
+  const state = createOAuthState("twitter");
+  const codeVerifier = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+  const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+  db.oauthStates = { ...(db.oauthStates || {}), twitter: state };
+  db.oauthPkce = { ...(db.oauthPkce || {}), twitter: codeVerifier };
+  await writeDb(db);
+
+  const authUrl = new URL("https://x.com/i/oauth2/authorize");
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("client_id", env.X_CLIENT_ID);
+  authUrl.searchParams.set("redirect_uri", twitterRedirectUri);
+  authUrl.searchParams.set("scope", "tweet.read tweet.write users.read offline.access media.write");
+  authUrl.searchParams.set("state", state);
+  authUrl.searchParams.set("code_challenge", codeChallenge);
+  authUrl.searchParams.set("code_challenge_method", "S256");
+
+  res.writeHead(302, { location: authUrl.toString() });
+  res.end();
+}
+
+async function finishTwitterAuth(url, res) {
+  try {
+    const xError = url.searchParams.get("error");
+    const xErrorDescription = url.searchParams.get("error_description");
+    if (xError) return sendAuthError(res, `X authorization failed: ${xError}`, xErrorDescription || "Check your X app permissions and callback URL.");
+
+    const code = url.searchParams.get("code");
+    const returnedState = url.searchParams.get("state");
+    if (!code) return sendAuthError(res, "X did not return an authorization code.", "Start the connection flow again from the channels screen.");
+
+    const db = await readDb();
+    if (!returnedState || (returnedState !== db.oauthStates?.twitter && !verifyOAuthState(returnedState, "twitter"))) {
+      return sendAuthError(res, "OAuth state validation failed.", "Return to ClipRelay and try connecting X again.");
+    }
+
+    const tokenData = await exchangeTwitterCode(code, db.oauthPkce?.twitter || "");
+    const profile = await fetchTwitterProfileSafe(tokenData.access_token);
+    const channel = {
+      id: "twitter",
+      provider: "twitter",
+      connected: true,
+      displayName: profile.name || profile.username || "X Account",
+      externalId: profile.id || "",
+      avatarUrl: profile.profile_image_url || "",
+      username: profile.username || "",
+      accessToken: tokenData.access_token,
+      refreshToken: tokenData.refresh_token,
+      expiresAt: tokenData.expires_in ? Date.now() + Number(tokenData.expires_in) * 1000 : undefined,
+      scopes: tokenData.scope || "",
+      connectedAt: new Date().toISOString(),
+    };
+    upsertChannel(db, channel);
+    db.oauthStates.twitter = undefined;
+    if (db.oauthPkce) db.oauthPkce.twitter = undefined;
+    await writeDb(db);
+
+    sendHtml(
+      res,
+      `<main style="font-family:system-ui;padding:32px;line-height:1.6;max-width:760px">
+        <h1>X connected</h1>
+        <p>Connected account: <strong>${escapeHtml(channel.displayName)}</strong></p>
+        <p><a href="/">Return to ClipRelay</a></p>
+      </main>`,
+    );
+  } catch (error) {
+    console.error("X OAuth callback failed:", error);
+    sendAuthError(res, "X connection failed", error.message || "Unknown error");
+  }
+}
+
 async function finishTikTokAuth(url, res) {
   try {
     const tiktokError = url.searchParams.get("error");
@@ -579,6 +673,26 @@ async function exchangeTikTokCode(code) {
   });
 }
 
+async function exchangeTwitterCode(code, codeVerifier) {
+  if (!codeVerifier) throw new Error("The X login session expired. Start the connection flow again.");
+  const body = new URLSearchParams({
+    code,
+    grant_type: "authorization_code",
+    client_id: env.X_CLIENT_ID,
+    redirect_uri: twitterRedirectUri,
+    code_verifier: codeVerifier,
+  });
+  const basicAuth = Buffer.from(`${env.X_CLIENT_ID}:${env.X_CLIENT_SECRET}`).toString("base64");
+  return requestJson("https://api.x.com/2/oauth2/token", {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      authorization: `Basic ${basicAuth}`,
+    },
+    body: body.toString(),
+  });
+}
+
 async function fetchTikTokProfile(accessToken) {
   const data = await requestJson("https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name,username", {
     headers: { authorization: `Bearer ${accessToken}` },
@@ -594,6 +708,22 @@ async function fetchTikTokProfileSafe(accessToken) {
       return {};
     }
     throw error;
+  }
+}
+
+async function fetchTwitterProfile(accessToken) {
+  const data = await requestJson("https://api.x.com/2/users/me?user.fields=profile_image_url,username,name", {
+    headers: { authorization: `Bearer ${accessToken}` },
+  });
+  return data.data || {};
+}
+
+async function fetchTwitterProfileSafe(accessToken) {
+  try {
+    return await fetchTwitterProfile(accessToken);
+  } catch (error) {
+    console.warn("X profile lookup failed, using fallback profile:", error.message || error);
+    return {};
   }
 }
 
@@ -814,6 +944,7 @@ async function deleteChannel(url, res) {
   const before = db.channels.length;
   db.channels = db.channels.filter((channel) => channel.id !== id);
   if (db.oauthStates && id in db.oauthStates) db.oauthStates[id] = undefined;
+  if (db.oauthPkce && id in db.oauthPkce) db.oauthPkce[id] = undefined;
   await writeDb(db);
   sendJson(res, { ok: db.channels.length < before });
 }

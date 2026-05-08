@@ -284,12 +284,15 @@ function renderPlatforms() {
   platforms.forEach((platform) => {
     const connectedChannel = connectedChannels.get(platform.id);
     const isConnected = Boolean(connectedChannel?.connected);
+    const canPublishNow = platform.id !== "twitter" && isConnected;
     const node = template.content.firstElementChild.cloneNode(true);
     node.dataset.platform = platform.id;
     node.querySelector(".platform-logo").textContent = platform.logo;
     node.querySelector(".platform-logo").style.background = platform.color;
     node.querySelector("h3").textContent = platform.name;
-    node.querySelector("p").textContent = isConnected ? platform.hint : "Not connected, so real publishing is disabled for now";
+    node.querySelector("p").textContent = isConnected
+      ? (platform.id === "twitter" ? "Connected for account auth. Video publishing to X is the next step." : platform.hint)
+      : "Not connected, so real publishing is disabled for now";
     node.querySelector(".limit-pill").textContent = `${platform.limit} chars`;
 
     const toggle = node.querySelector('input[type="checkbox"]');
@@ -299,8 +302,9 @@ function renderPlatforms() {
     const count = node.querySelector(".char-count");
     const styleButton = node.querySelector(".tiny-button");
 
-    toggle.checked = isConnected;
-    node.classList.toggle("disabled", !isConnected);
+    toggle.checked = canPublishNow;
+    toggle.disabled = platform.id === "twitter";
+    node.classList.toggle("disabled", !canPublishNow);
     channelValue.textContent = connectedChannel?.displayName || "Not connected";
 
     title.placeholder = `${platform.name} title`;
@@ -903,7 +907,6 @@ function renderChannels() {
     const actionButton = node.querySelector(".tiny-button");
     actionButton.textContent = connected ? "Disconnect" : channelActionText(platform.id);
     node.querySelector(".channel-value").textContent = connected ? (serverChannel.displayName || "Authorized account") : "Not connected";
-    actionButton.disabled = platform.id === "twitter";
     actionButton.addEventListener("click", async () => {
       if (connected) {
         await disconnectChannel(platform.id, platform.name);
@@ -912,6 +915,7 @@ function renderChannels() {
       if (platform.id === "youtube") window.location.href = "/auth/youtube";
       if (platform.id === "instagram") window.location.href = "/auth/instagram";
       if (platform.id === "tiktok") window.location.href = "/auth/tiktok";
+      if (platform.id === "twitter") window.location.href = "/auth/twitter";
     });
     channelGrid.appendChild(node);
   });
@@ -932,21 +936,21 @@ function channelConnectionText(platformId) {
   if (platformId === "youtube") return "Google OAuth is available";
   if (platformId === "instagram") return "Meta OAuth is available";
   if (platformId === "tiktok") return "TikTok OAuth is available";
-  return "OAuth setup coming soon";
+  return "X OAuth is available";
 }
 
 function channelSetupText(platformId) {
   if (platformId === "youtube") return "Requires Google Client ID and Client Secret";
   if (platformId === "instagram") return "Requires Meta App ID and Secret, plus a Business or Creator account";
   if (platformId === "tiktok") return "Requires TikTok Client Key, Client Secret, and Content Posting API access";
-  return "Integration coming in a later phase";
+  return "Requires X Client ID, Client Secret, and Web App OAuth settings";
 }
 
 function channelActionText(platformId) {
   if (platformId === "youtube") return "Connect YouTube";
   if (platformId === "instagram") return "Connect Instagram";
   if (platformId === "tiktok") return "Connect TikTok";
-  return "Coming soon";
+  return "Connect X";
 }
 
 function updateChannelSummary() {
