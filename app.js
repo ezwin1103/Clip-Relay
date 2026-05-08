@@ -516,7 +516,33 @@ function renderAssets() {
     const node = template.content.firstElementChild.cloneNode(true);
     node.dataset.asset = asset.id;
     node.classList.toggle("selected", state.selectedAssets.has(asset.id));
-    node.querySelector(".asset-thumb").style.background = `linear-gradient(145deg, ${asset.color}, #171d1a)`;
+    const thumb = node.querySelector(".asset-thumb");
+    const preview = node.querySelector(".asset-preview");
+    const fallback = node.querySelector(".asset-preview-fallback");
+    thumb.style.background = `linear-gradient(145deg, ${asset.color}, #171d1a)`;
+    if (asset.url) {
+      preview.src = asset.url;
+      preview.style.display = "";
+      fallback.style.display = "none";
+      preview.addEventListener(
+        "loadeddata",
+        () => {
+          preview.style.opacity = "1";
+        },
+        { once: true },
+      );
+      preview.addEventListener(
+        "error",
+        () => {
+          preview.style.display = "none";
+          fallback.style.display = "";
+        },
+        { once: true },
+      );
+    } else {
+      preview.style.display = "none";
+      fallback.style.display = "";
+    }
     node.querySelector(".asset-duration").textContent = asset.duration;
     node.querySelector("h3").textContent = asset.title;
     node.querySelector("p").textContent = asset.desc;

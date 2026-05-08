@@ -338,6 +338,8 @@
     <template id="assetTemplate">
       <article class="asset-card">
         <div class="asset-thumb">
+          <video class="asset-preview" muted playsinline preload="metadata"></video>
+          <div class="asset-preview-fallback" aria-hidden="true">▶</div>
           <span class="asset-duration"></span>
           <button class="asset-check" type="button" aria-label="Select asset">✓</button>
         </div>

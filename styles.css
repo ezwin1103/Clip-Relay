@@ -715,6 +715,7 @@ textarea {
   display: grid;
   grid-template-columns: repeat(2, minmax(280px, 1fr));
   gap: 14px;
+  align-items: start;
 }
 
 .asset-card,
@@ -735,16 +736,29 @@ textarea {
 .asset-thumb {
   position: relative;
   min-height: 172px;
+  background: linear-gradient(145deg, #205d55, #0f1f1a);
 }
 
-.asset-thumb::after {
-  content: "▶";
+.asset-preview,
+.asset-preview-fallback {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-preview {
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.asset-preview-fallback {
   display: grid;
   place-items: center;
   color: rgba(255, 255, 255, 0.9);
   font-size: 42px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.12));
 }
 
 .asset-duration,
@@ -850,11 +864,19 @@ textarea {
 
 .list-panel {
   padding: 16px;
+  min-height: 0;
 }
 
 .history-list {
   display: grid;
   gap: 10px;
+}
+
+.history-list .queue-empty {
+  min-height: 112px;
+  display: grid;
+  place-items: center;
+  text-align: center;
 }
 
 .history-item {
@@ -864,6 +886,18 @@ textarea {
   border-radius: 8px;
   background: #fbfcfb;
   padding: 12px;
+}
+
+#view-library .library-columns {
+  margin-top: 14px;
+}
+
+#view-library .panel-heading {
+  align-items: center;
+}
+
+#view-library .panel-heading p {
+  max-width: 44ch;
 }
 
 .history-main {
