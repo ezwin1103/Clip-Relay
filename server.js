@@ -2,7 +2,6 @@ import { createServer } from "node:http";
 import { execFile } from "node:child_process";
 import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { openSync, readSync, closeSync } from "node:fs";
-import { createHash } from "node:crypto";
 import { extname, join, normalize, relative } from "node:path";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
@@ -370,8 +369,7 @@ async function startTikTokAuth(res) {
 
   const db = await readDb();
   const state = crypto.randomUUID();
-  const verifier = createPkceVerifier();
-  db.oauthStates = { ...(db.oauthStates || {}), tiktok: state, tiktokVerifier: verifier };
+  db.oauthStates = { ...(db.oauthStates || {}), tiktok: state };
   await writeDb(db);
 
   const authUrl = new URL("https://www.tiktok.com/v2/auth/authorize/");
@@ -380,8 +378,6 @@ async function startTikTokAuth(res) {
   authUrl.searchParams.set("response_type", "code");
   authUrl.searchParams.set("scope", "user.info.basic,video.upload,video.publish");
   authUrl.searchParams.set("state", state);
-  authUrl.searchParams.set("code_challenge", pkceChallenge(verifier));
-  authUrl.searchParams.set("code_challenge_method", "S256");
 
   res.writeHead(302, { location: authUrl.toString() });
   res.end();
@@ -402,7 +398,7 @@ async function finishTikTokAuth(url, res) {
       return sendAuthError(res, "OAuth state 校验失败。", "请回到 ClipRelay 重新点击连接 TikTok。");
     }
 
-    const tokenData = await exchangeTikTokCode(code, db.oauthStates.tiktokVerifier);
+    const tokenData = await exchangeTikTokCode(code);
     const profile = await fetchTikTokProfile(tokenData.access_token);
     const channel = {
       id: "tiktok",
@@ -419,7 +415,6 @@ async function finishTikTokAuth(url, res) {
     };
     upsertChannel(db, channel);
     db.oauthStates.tiktok = undefined;
-    db.oauthStates.tiktokVerifier = undefined;
     await writeDb(db);
 
     sendHtml(
@@ -504,14 +499,13 @@ async function fetchInstagramProfile(userAccessToken) {
   };
 }
 
-async function exchangeTikTokCode(code, verifier) {
+async function exchangeTikTokCode(code) {
   const body = new URLSearchParams({
     client_key: env.TIKTOK_CLIENT_KEY,
     client_secret: env.TIKTOK_CLIENT_SECRET,
     code,
     grant_type: "authorization_code",
     redirect_uri: tiktokRedirectUri,
-    code_verifier: verifier || "",
   });
   return requestJson("https://open.tiktokapis.com/v2/oauth/token/", {
     method: "POST",
@@ -525,14 +519,6 @@ async function fetchTikTokProfile(accessToken) {
     headers: { authorization: `Bearer ${accessToken}` },
   });
   return data.data?.user || {};
-}
-
-function createPkceVerifier() {
-  return Buffer.from(crypto.getRandomValues(new Uint8Array(48))).toString("base64url");
-}
-
-function pkceChallenge(verifier) {
-  return createHash("sha256").update(verifier).digest("base64url");
 }
 
 async function fetchYouTubeChannel(accessToken) {
