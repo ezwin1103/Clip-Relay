@@ -188,6 +188,10 @@ function missingInstagramCredentials() {
   return !env.META_APP_ID || !env.META_APP_SECRET;
 }
 
+function hasMetaConfigId() {
+  return Boolean(env.META_CONFIG_ID);
+}
+
 function missingTikTokCredentials() {
   return !env.TIKTOK_CLIENT_KEY || !env.TIKTOK_CLIENT_SECRET;
 }
@@ -305,6 +309,7 @@ async function startInstagramAuth(res) {
       `<main style="font-family:system-ui;padding:32px;line-height:1.6;max-width:760px">
         <h1>Meta OAuth is required</h1>
         <p>Fill in <code>META_APP_ID</code> and <code>META_APP_SECRET</code> inside <code>.env</code>.</p>
+        <p>If your Meta app uses Facebook Login for Business, also set <code>META_CONFIG_ID</code>.</p>
         <p>Use this Valid OAuth Redirect URI in your Meta app:</p>
         <pre style="background:#f2f4f3;padding:12px;border-radius:8px">${instagramRedirectUri}</pre>
         <p><a href="/">Return to ClipRelay</a></p>
@@ -323,7 +328,11 @@ async function startInstagramAuth(res) {
   authUrl.searchParams.set("redirect_uri", instagramRedirectUri);
   authUrl.searchParams.set("response_type", "code");
   authUrl.searchParams.set("state", state);
-  authUrl.searchParams.set("scope", "pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publish,business_management");
+  if (hasMetaConfigId()) {
+    authUrl.searchParams.set("config_id", env.META_CONFIG_ID);
+  } else {
+    authUrl.searchParams.set("scope", "pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publish,business_management");
+  }
 
   res.writeHead(302, { location: authUrl.toString() });
   res.end();
