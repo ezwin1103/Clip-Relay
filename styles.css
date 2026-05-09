@@ -590,6 +590,10 @@ textarea {
   grid-column: 1 / -1;
 }
 
+.title-field[style*="display: none"] {
+  display: none !important;
+}
+
 .card-footer {
   display: flex;
   justify-content: space-between;

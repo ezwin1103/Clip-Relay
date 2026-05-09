@@ -295,6 +295,8 @@ function renderPlatforms() {
 
     const toggle = node.querySelector('input[type="checkbox"]');
     const channelValue = node.querySelector(".channel-value");
+    const titleField = node.querySelector(".title-field");
+    const titleLabel = node.querySelector(".title-label");
     const title = node.querySelector('input[type="text"]');
     const caption = node.querySelector("textarea");
     const count = node.querySelector(".char-count");
@@ -304,7 +306,16 @@ function renderPlatforms() {
     node.classList.toggle("disabled", !canPublishNow);
     channelValue.textContent = connectedChannel?.displayName || "Not connected";
 
-    title.placeholder = `${platform.name} title`;
+    const needsTitle = platform.id === "youtube";
+    titleField.style.display = needsTitle ? "" : "none";
+    titleLabel.textContent = platform.id === "youtube" ? "Title" : "Post text";
+    title.placeholder = platform.id === "youtube" ? "Write a short YouTube title" : "";
+    caption.placeholder =
+      platform.id === "youtube"
+        ? "Write the YouTube description"
+        : platform.id === "twitter"
+          ? "Write the X post text"
+          : "Write the caption";
 
     const refreshCount = () => {
       const length = caption.value.length;
@@ -337,9 +348,7 @@ function selectedCards() {
 function updateSummary() {
   const selected = selectedCards();
   const readyCards = selected.filter((card) => {
-    const title = card.querySelector('input[type="text"]').value.trim();
-    const caption = card.querySelector("textarea").value.trim();
-    return title && caption;
+    return isCardReady(card);
   });
   const ready = state.hasVideo && selected.length > 0 && readyCards.length === selected.length;
 
@@ -348,6 +357,18 @@ function updateSummary() {
   document.querySelector("#summaryMode").textContent =
     state.mode === "now" ? "Publish now" : document.querySelector("#scheduleAt").value || "Scheduled";
   document.querySelector("#publishAll").textContent = state.mode === "now" ? "Publish now" : "Schedule task";
+}
+
+function platformNeedsTitle(platformId) {
+  return platformId === "youtube";
+}
+
+function isCardReady(card) {
+  const platformId = card.dataset.platform;
+  const title = card.querySelector('input[type="text"]').value.trim();
+  const caption = card.querySelector("textarea").value.trim();
+  if (platformNeedsTitle(platformId)) return Boolean(title && caption);
+  return Boolean(caption);
 }
 
 function handleFile(file) {
@@ -396,7 +417,7 @@ function applyMasterCaption() {
     const platform = platforms.find((item) => item.id === card.dataset.platform);
     const title = card.querySelector('input[type="text"]');
     const caption = card.querySelector("textarea");
-    title.value = masterCaption.value.trim().slice(0, 48) || `${platform.name} new post`;
+    title.value = platformNeedsTitle(platform.id) ? (masterCaption.value.trim().slice(0, 48) || `${platform.name} new post`) : "";
     caption.value = platformText(masterCaption.value, platform);
     caption.dispatchEvent(new Event("input"));
   });
@@ -416,10 +437,10 @@ async function publishAll() {
     return;
   }
   const incomplete = cards.some((card) => {
-    return !card.querySelector('input[type="text"]').value.trim() || !card.querySelector("textarea").value.trim();
+    return !isCardReady(card);
   });
   if (incomplete) {
-    queueList.innerHTML = '<p class="queue-empty">Complete the title and caption for every selected platform, or use AI to optimize all of them.</p>';
+    queueList.innerHTML = '<p class="queue-empty">Complete the required copy for every selected platform, or use AI to optimize all of them.</p>';
     return;
   }
 
