@@ -671,8 +671,9 @@ textarea {
 }
 
 .segmented {
-  display: grid;
-  grid-template-columns: repeat(2, 72px);
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(72px, max-content);
   padding: 3px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -690,6 +691,8 @@ textarea {
   background: transparent;
   color: var(--muted);
   font-weight: 750;
+  padding: 0 14px;
+  white-space: nowrap;
 }
 
 .segmented button.active {

@@ -728,6 +728,7 @@ function useAsset(asset) {
   switchView("publish");
   markDraftDirty();
   updateSummary();
+  setAiHelper("Source video opened in Publish. This does not publish anything yet — it just loads the asset so you can write or rewrite the release.");
 }
 
 async function deleteAsset(asset) {
