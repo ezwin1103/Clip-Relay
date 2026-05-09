@@ -294,6 +294,7 @@ function renderPlatforms() {
     node.querySelector(".limit-pill").textContent = `${platform.limit} chars`;
 
     const toggle = node.querySelector('input[type="checkbox"]');
+    const accountLabel = node.querySelector("label span");
     const channelValue = node.querySelector(".channel-value");
     const titleField = node.querySelector(".title-field");
     const titleLabel = node.querySelector(".title-label");
@@ -304,6 +305,7 @@ function renderPlatforms() {
 
     toggle.checked = canPublishNow;
     node.classList.toggle("disabled", !canPublishNow);
+    accountLabel.textContent = isConnected ? "Connected account" : "Connection required";
     channelValue.textContent = connectedChannel?.displayName || "Not connected";
 
     const needsTitle = platform.id === "youtube";
