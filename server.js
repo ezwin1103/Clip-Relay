@@ -625,18 +625,26 @@ async function exchangeInstagramCode(code) {
 }
 
 async function fetchInstagramProfile(userAccessToken) {
-  const profile = await requestJson(
-    `https://graph.instagram.com/v24.0/me?fields=id,user_id,username,name,profile_picture_url&access_token=${encodeURIComponent(userAccessToken)}`,
-  );
-  const igUserId = profile.id || profile.user_id;
-  if (!igUserId) {
-    throw new Error("No Instagram professional account ID was returned. Confirm that you connected a Business or Creator account in Instagram Login.");
+  const candidates = [
+    "https://graph.instagram.com/me?fields=id,user_id,username,name,profile_picture_url",
+    "https://graph.instagram.com/v24.0/me?fields=id,user_id,username,name,profile_picture_url",
+  ];
+  let lastError = null;
+  for (const baseUrl of candidates) {
+    try {
+      const profile = await requestJson(`${baseUrl}&access_token=${encodeURIComponent(userAccessToken)}`);
+      const igUserId = profile.id || profile.user_id;
+      if (!igUserId) continue;
+      return {
+        instagramBusinessAccountId: igUserId,
+        displayName: profile.username || profile.name || "Instagram Account",
+        thumbnail: profile.profile_picture_url || "",
+      };
+    } catch (error) {
+      lastError = error;
+    }
   }
-  return {
-    instagramBusinessAccountId: igUserId,
-    displayName: profile.username || profile.name || "Instagram Account",
-    thumbnail: profile.profile_picture_url || "",
-  };
+  throw lastError || new Error("No Instagram professional account ID was returned. Confirm that you connected a Business or Creator account in Instagram Login.");
 }
 
 async function fetchInstagramProfileSafe(userAccessToken, fallbackUserId = "") {
@@ -647,13 +655,32 @@ async function fetchInstagramProfileSafe(userAccessToken, fallbackUserId = "") {
     console.warn("Instagram profile lookup failed, using fallback profile:", error.message || error);
   }
 
+  if (fallbackUserId) {
+    const fallbackUrls = [
+      `https://graph.instagram.com/${encodeURIComponent(fallbackUserId)}?fields=username,name,profile_picture_url&access_token=${encodeURIComponent(userAccessToken)}`,
+      `https://graph.instagram.com/v24.0/${encodeURIComponent(fallbackUserId)}?fields=username,name,profile_picture_url&access_token=${encodeURIComponent(userAccessToken)}`,
+    ];
+    for (const url of fallbackUrls) {
+      try {
+        const profile = await requestJson(url);
+        return {
+          instagramBusinessAccountId: String(fallbackUserId),
+          displayName: profile.username || profile.name || `IG ${fallbackUserId}`,
+          thumbnail: profile.profile_picture_url || "",
+        };
+      } catch (error) {
+        console.warn("Instagram fallback username lookup failed:", error.message || error);
+      }
+    }
+  }
+
   if (!fallbackUserId) {
     throw new Error("Instagram authorization succeeded, but no Instagram account ID was returned. Please verify the app permissions and reconnect.");
   }
 
   return {
     instagramBusinessAccountId: String(fallbackUserId),
-    displayName: "Instagram Account",
+    displayName: `IG ${fallbackUserId}`,
     thumbnail: "",
   };
 }

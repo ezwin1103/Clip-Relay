@@ -294,7 +294,7 @@ function renderPlatforms() {
     node.querySelector(".limit-pill").textContent = `${platform.limit} chars`;
 
     const toggle = node.querySelector('input[type="checkbox"]');
-    const accountLabel = node.querySelector("label span");
+    const accountLabel = node.querySelector(".platform-fields > label:first-child > span");
     const channelValue = node.querySelector(".channel-value");
     const titleField = node.querySelector(".title-field");
     const titleLabel = node.querySelector(".title-label");
