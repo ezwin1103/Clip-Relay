@@ -699,7 +699,7 @@ function renderDraftList() {
         <span class="asset-status" data-status="draft">Draft</span>
       </div>
       <div class="history-actions">
-        <button class="tiny-button load-draft" type="button">Resume editing</button>
+        <button class="tiny-button load-draft" type="button">Edit draft</button>
         <button class="tiny-button danger-button delete-draft" type="button">Delete</button>
       </div>
     `;
@@ -823,7 +823,7 @@ function loadDraft(draft) {
   });
   switchView("publish");
   updateSummary();
-  setAiHelper("Draft loaded. You can keep editing or publish from here.");
+  setAiHelper("Draft loaded from Library. Keep editing in Publish, then save again or publish when ready.");
 }
 
 async function deleteDraft(id) {
@@ -1019,6 +1019,7 @@ document.querySelector("#saveDraft").addEventListener("click", () => {
     .then(() => {
       document.querySelector("#summaryReady").textContent = "Draft saved";
       loadServerState();
+      setAiHelper("Draft saved to Library. Open Library > Drafts any time to edit it again.");
       window.setTimeout(updateSummary, 1400);
     })
     .catch((error) => {
