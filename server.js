@@ -368,7 +368,7 @@ async function startInstagramAuth(res) {
     } else {
       authUrl.searchParams.set(
         "scope",
-        "pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publishing,business_management",
+        "pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publish,business_management",
       );
     }
   } else {
