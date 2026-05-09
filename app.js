@@ -326,8 +326,13 @@ function renderPlatforms() {
     const count = node.querySelector(".char-count");
     const styleButton = node.querySelector(".ai-button");
     const connectButton = node.querySelector(".connect-platform");
+    const previewAvatar = node.querySelector(".preview-avatar");
     const previewHandle = node.querySelector(".preview-handle");
+    const previewSubline = node.querySelector(".preview-subline");
     const previewMedia = node.querySelector(".preview-media");
+    const previewVideo = node.querySelector(".preview-video");
+    const previewFallback = node.querySelector(".preview-media-fallback");
+    const previewChip = node.querySelector(".preview-platform-chip");
     const previewTitle = node.querySelector(".preview-title");
     const previewCopy = node.querySelector(".preview-copy");
     const previewWrap = node.querySelector(".platform-preview");
@@ -356,8 +361,19 @@ function renderPlatforms() {
     connectButton.disabled = isConnected;
     connectButton.addEventListener("click", () => connectPlatform(platform.id));
     previewHandle.textContent = connectedChannel?.displayName || platform.name;
+    previewSubline.textContent = previewSublineText(platform, connectedChannel);
+    previewChip.textContent = previewChipText(platform);
+    previewAvatar.textContent = previewInitials(connectedChannel?.displayName || platform.name);
     previewWrap.hidden = !isConnected || !state.hasVideo;
-    previewMedia.hidden = platform.id === "twitter";
+    if (state.hasVideo) {
+      previewVideo.src = currentPreviewSource();
+      previewVideo.hidden = false;
+      previewFallback.style.display = "none";
+    } else {
+      previewVideo.removeAttribute("src");
+      previewVideo.hidden = true;
+      previewFallback.style.display = "";
+    }
 
     const refreshCount = () => {
       const length = platformNeedsTitle(platform.id) ? title.value.length : caption.value.length;
@@ -388,6 +404,29 @@ function renderPlatforms() {
     refreshCount();
     platformList.appendChild(node);
   });
+}
+
+function currentPreviewSource() {
+  return videoPreview.currentSrc || videoPreview.src || state.uploadedAsset?.url || "";
+}
+
+function previewInitials(name) {
+  const words = String(name || "").trim().split(/\s+/).filter(Boolean);
+  return (words[0]?.[0] || "C").toUpperCase();
+}
+
+function previewSublineText(platform, channel) {
+  if (platform.id === "instagram") return "Reel preview";
+  if (platform.id === "tiktok") return channel?.username ? `@${channel.username}` : "TikTok preview";
+  if (platform.id === "twitter") return channel?.username ? `@${channel.username}` : "Post preview";
+  return "Shorts preview";
+}
+
+function previewChipText(platform) {
+  if (platform.id === "instagram") return "Reel cover";
+  if (platform.id === "tiktok") return "TikTok";
+  if (platform.id === "twitter") return "Media card";
+  return "Shorts";
 }
 
 function getCards() {
