@@ -637,6 +637,7 @@ async function fetchInstagramProfile(userAccessToken) {
       if (!igUserId) continue;
       return {
         instagramBusinessAccountId: igUserId,
+        instagramScopedUserId: profile.user_id || "",
         displayName: profile.username || profile.name || "Instagram Account",
         thumbnail: profile.profile_picture_url || "",
       };
@@ -665,6 +666,7 @@ async function fetchInstagramProfileSafe(userAccessToken, fallbackUserId = "") {
         const profile = await requestJson(url);
         return {
           instagramBusinessAccountId: String(fallbackUserId),
+          instagramScopedUserId: String(fallbackUserId),
           displayName: profile.username || profile.name || `IG ${fallbackUserId}`,
           thumbnail: profile.profile_picture_url || "",
         };
@@ -680,9 +682,27 @@ async function fetchInstagramProfileSafe(userAccessToken, fallbackUserId = "") {
 
   return {
     instagramBusinessAccountId: String(fallbackUserId),
+    instagramScopedUserId: String(fallbackUserId),
     displayName: `IG ${fallbackUserId}`,
     thumbnail: "",
   };
+}
+
+async function resolveInstagramPublishingChannel(db, channel) {
+  if (!channel?.accessToken) return channel;
+  try {
+    const profile = await fetchInstagramProfile(channel.accessToken);
+    if (profile.instagramBusinessAccountId) {
+      channel.externalId = profile.instagramBusinessAccountId;
+      if (profile.displayName) channel.displayName = profile.displayName;
+      if (profile.thumbnail) channel.thumbnail = profile.thumbnail;
+      upsertChannel(db, channel);
+      await writeDb(db);
+    }
+  } catch (error) {
+    console.warn("Could not refresh Instagram publishing profile before upload:", error.message || error);
+  }
+  return channel;
 }
 
 async function exchangeTikTokCode(code) {
@@ -1122,20 +1142,21 @@ async function runInstagramUpload(taskId) {
   const channel = db.channels?.find((item) => item.id === "instagram" && item.connected);
   const copy = task.platforms?.find((item) => item.id === "instagram");
   try {
-    if (!channel?.externalId) throw new Error("Instagram channel is missing the Instagram account ID. Please reconnect Instagram.");
+    const resolvedChannel = await resolveInstagramPublishingChannel(db, channel);
+    if (!resolvedChannel?.externalId) throw new Error("Instagram channel is missing the Instagram account ID. Please reconnect Instagram.");
     if (!env.PUBLIC_ASSET_BASE_URL) {
       throw new Error("Instagram Reels publishing requires a public HTTPS video URL. Set PUBLIC_ASSET_BASE_URL, such as a Cloudflare Tunnel, S3, or R2 URL.");
     }
     const videoUrl = `${env.PUBLIC_ASSET_BASE_URL.replace(/\/$/, "")}${task.asset.url}`;
     await updatePlatformTaskProgress(taskId, "instagram", { status: "publishing", progress: 5, note: "Reels container submitted" });
-    const token = channel.accessToken;
+    const token = resolvedChannel.accessToken;
     const createBody = new FormData();
     createBody.set("access_token", token);
     createBody.set("media_type", "REELS");
     createBody.set("video_url", videoUrl);
     createBody.set("caption", copy.caption || task.masterCaption || "");
     createBody.set("share_to_feed", "true");
-    const container = await requestJson(`https://graph.instagram.com/v24.0/${channel.externalId}/media`, {
+    const container = await requestJson(`https://graph.instagram.com/v24.0/${resolvedChannel.externalId}/media`, {
       method: "POST",
       headers: {},
       body: createBody,
@@ -1144,7 +1165,7 @@ async function runInstagramUpload(taskId) {
     const publishBody = new FormData();
     publishBody.set("creation_id", container.id);
     publishBody.set("access_token", token);
-    const published = await requestJson(`https://graph.instagram.com/v24.0/${channel.externalId}/media_publish`, {
+    const published = await requestJson(`https://graph.instagram.com/v24.0/${resolvedChannel.externalId}/media_publish`, {
       method: "POST",
       headers: {},
       body: publishBody,
