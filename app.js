@@ -49,6 +49,8 @@ const state = {
   uploadedAsset: null,
   activeDraftId: null,
   draftDirty: false,
+  previewCoverUrl: "",
+  previewCoverSource: "",
   db: { drafts: [], tasks: [], assets: [] },
 };
 
@@ -337,6 +339,7 @@ function renderPlatforms() {
     const previewCopy = node.querySelector(".preview-copy");
     const previewWrap = node.querySelector(".platform-preview");
     const previewShell = node.querySelector(".preview-shell");
+    const previewAvatarUrl = connectedChannel?.thumbnail || connectedChannel?.avatarUrl || "";
 
     toggle.checked = canPublishNow;
     node.classList.toggle("disabled", !canPublishNow);
@@ -363,17 +366,12 @@ function renderPlatforms() {
     previewHandle.textContent = connectedChannel?.displayName || platform.name;
     previewSubline.textContent = previewSublineText(platform, connectedChannel);
     previewChip.textContent = previewChipText(platform);
-    previewAvatar.textContent = previewInitials(connectedChannel?.displayName || platform.name);
+    previewAvatar.textContent = previewAvatarUrl ? "" : previewInitials(connectedChannel?.displayName || platform.name);
+    previewAvatar.style.backgroundImage = previewAvatarUrl ? `url("${previewAvatarUrl}")` : "";
     previewWrap.hidden = !isConnected || !state.hasVideo;
-    if (state.hasVideo) {
-      previewVideo.src = currentPreviewSource();
-      previewVideo.hidden = false;
-      previewFallback.style.display = "none";
-    } else {
-      previewVideo.removeAttribute("src");
-      previewVideo.hidden = true;
-      previewFallback.style.display = "";
-    }
+    const previewCover = currentPreviewCover();
+    previewMedia.classList.toggle("has-cover", Boolean(previewCover));
+    previewVideo.style.backgroundImage = previewCover ? `url("${previewCover}")` : "";
 
     const refreshCount = () => {
       const length = platformNeedsTitle(platform.id) ? title.value.length : caption.value.length;
@@ -408,6 +406,85 @@ function renderPlatforms() {
 
 function currentPreviewSource() {
   return videoPreview.currentSrc || videoPreview.src || state.uploadedAsset?.url || "";
+}
+
+function currentPreviewCover() {
+  return state.previewCoverUrl || state.uploadedAsset?.thumbnail || state.uploadedAsset?.posterUrl || "";
+}
+
+async function refreshPreviewCover(source) {
+  if (!source) {
+    state.previewCoverSource = "";
+    state.previewCoverUrl = "";
+    renderPlatforms();
+    return;
+  }
+
+  if (state.previewCoverSource === source && state.previewCoverUrl) {
+    renderPlatforms();
+    return;
+  }
+
+  state.previewCoverSource = source;
+  state.previewCoverUrl = "";
+  renderPlatforms();
+
+  try {
+    const cover = await captureVideoFrame(source);
+    if (state.previewCoverSource === source) {
+      state.previewCoverUrl = cover;
+      renderPlatforms();
+    }
+  } catch (error) {
+    console.warn("Could not create a preview cover from the current video source:", error.message || error);
+  }
+}
+
+function captureVideoFrame(source) {
+  return new Promise((resolve, reject) => {
+    const probe = document.createElement("video");
+    probe.muted = true;
+    probe.playsInline = true;
+    probe.preload = "auto";
+
+    const cleanup = () => {
+      probe.pause();
+      probe.removeAttribute("src");
+      probe.load();
+    };
+
+    const capture = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = probe.videoWidth || 720;
+      canvas.height = probe.videoHeight || 1280;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        cleanup();
+        reject(new Error("Canvas is unavailable"));
+        return;
+      }
+      context.drawImage(probe, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.86);
+      cleanup();
+      resolve(dataUrl);
+    };
+
+    probe.addEventListener("error", () => {
+      cleanup();
+      reject(new Error("Frame capture failed"));
+    }, { once: true });
+
+    probe.addEventListener("loadeddata", () => {
+      if (Number.isFinite(probe.duration) && probe.duration > 0.24) {
+        probe.currentTime = 0.2;
+      } else {
+        capture();
+      }
+    }, { once: true });
+
+    probe.addEventListener("seeked", capture, { once: true });
+    probe.src = source;
+  });
 }
 
 function previewInitials(name) {
@@ -532,6 +609,7 @@ function handleFile(file) {
   if (firstAssetForSession) renderPlatforms();
   const url = URL.createObjectURL(file);
   videoPreview.src = url;
+  refreshPreviewCover(url);
   previewWrap.classList.remove("hidden");
   previewWrap.classList.remove("empty");
   emptyPreview.style.display = "none";
@@ -777,6 +855,7 @@ function useAsset(asset) {
   if (firstAssetForSession) renderPlatforms();
   if (asset.url) {
     videoPreview.src = asset.url;
+    refreshPreviewCover(asset.url);
     previewWrap.classList.remove("hidden");
     previewWrap.classList.remove("empty");
     emptyPreview.style.display = "none";

@@ -853,14 +853,6 @@ textarea {
   border-top: 1px solid #e6ebe7;
 }
 
-.preview-label {
-  display: inline-block;
-  margin-bottom: 8px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
 .preview-shell {
   overflow: hidden;
   border: 1px solid #dbe3dd;
@@ -904,6 +896,14 @@ textarea {
   border-radius: 999px;
   background: #d8dfda;
   flex: 0 0 auto;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  color: #203029;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 30px;
+  text-align: center;
 }
 
 .preview-account {
@@ -933,14 +933,16 @@ textarea {
 }
 
 .preview-shell[data-platform="instagram"] .preview-media,
-.preview-shell[data-platform="tiktok"] .preview-media,
-.preview-shell[data-platform="youtube"] .preview-media {
+.preview-shell[data-platform="tiktok"] .preview-media {
   aspect-ratio: 9 / 16;
   width: min(178px, calc(100% - 24px));
 }
 
+.preview-shell[data-platform="youtube"] .preview-media {
+  width: min(178px, calc(100% - 24px));
+}
+
 .preview-shell[data-platform="twitter"] .preview-media {
-  aspect-ratio: 16 / 9;
   width: calc(100% - 24px);
 }
 
@@ -952,8 +954,10 @@ textarea {
 }
 
 .preview-video {
-  object-fit: cover;
   background: #101010;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 .preview-media-fallback {
@@ -976,6 +980,7 @@ textarea {
   bottom: 10px;
   display: flex;
   justify-content: flex-end;
+  z-index: 2;
 }
 
 .preview-platform-chip {
@@ -1022,6 +1027,115 @@ textarea {
 .preview-shell[data-platform="twitter"] .preview-copy {
   font-size: 14px;
   line-height: 1.55;
+}
+
+.preview-shell[data-platform="instagram"] .preview-media,
+.preview-shell[data-platform="tiktok"] .preview-media {
+  display: flex;
+  align-items: flex-end;
+}
+
+.preview-shell[data-platform="instagram"] .preview-media::after,
+.preview-shell[data-platform="tiktok"] .preview-media::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 58%;
+  background: linear-gradient(180deg, rgba(7, 8, 8, 0) 0%, rgba(7, 8, 8, 0.78) 70%, rgba(7, 8, 8, 0.92) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.preview-shell[data-platform="instagram"] .preview-body,
+.preview-shell[data-platform="tiktok"] .preview-body {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 14px 14px 18px;
+  z-index: 2;
+}
+
+.preview-shell[data-platform="instagram"] .preview-title,
+.preview-shell[data-platform="tiktok"] .preview-title {
+  display: none;
+}
+
+.preview-shell[data-platform="instagram"] .preview-copy,
+.preview-shell[data-platform="tiktok"] .preview-copy {
+  color: #fff;
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.preview-shell[data-platform="instagram"] .preview-header,
+.preview-shell[data-platform="tiktok"] .preview-header {
+  padding-bottom: 8px;
+}
+
+.preview-shell[data-platform="instagram"] .preview-media-fallback,
+.preview-shell[data-platform="tiktok"] .preview-media-fallback {
+  display: block;
+}
+
+.preview-shell[data-platform="instagram"] .preview-media.has-cover .preview-media-fallback,
+.preview-shell[data-platform="tiktok"] .preview-media.has-cover .preview-media-fallback,
+.preview-shell[data-platform="youtube"] .preview-media.has-cover .preview-media-fallback,
+.preview-shell[data-platform="twitter"] .preview-media.has-cover .preview-media-fallback {
+  display: none;
+}
+
+.preview-shell[data-platform="youtube"] .preview-body {
+  padding-top: 10px;
+}
+
+.preview-shell[data-platform="youtube"] .preview-title {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.preview-shell[data-platform="youtube"] .preview-copy {
+  color: var(--muted);
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.preview-shell[data-platform="youtube"] .preview-media,
+.preview-shell[data-platform="twitter"] .preview-media {
+  display: grid;
+  background: #fff;
+}
+
+.preview-shell[data-platform="youtube"] .preview-video,
+.preview-shell[data-platform="youtube"] .preview-media-fallback {
+  aspect-ratio: 9 / 16;
+}
+
+.preview-shell[data-platform="twitter"] .preview-video,
+.preview-shell[data-platform="twitter"] .preview-media-fallback {
+  aspect-ratio: 16 / 9;
+}
+
+.preview-shell[data-platform="twitter"] .preview-body {
+  padding-top: 10px;
+}
+
+.preview-shell[data-platform="twitter"] .preview-copy {
+  color: #1d2421;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
 }
 
 .char-count {
