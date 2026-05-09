@@ -284,15 +284,13 @@ function renderPlatforms() {
   platforms.forEach((platform) => {
     const connectedChannel = connectedChannels.get(platform.id);
     const isConnected = Boolean(connectedChannel?.connected);
-    const canPublishNow = platform.id !== "twitter" && isConnected;
+    const canPublishNow = isConnected;
     const node = template.content.firstElementChild.cloneNode(true);
     node.dataset.platform = platform.id;
     node.querySelector(".platform-logo").textContent = platform.logo;
     node.querySelector(".platform-logo").style.background = platform.color;
     node.querySelector("h3").textContent = platform.name;
-    node.querySelector("p").textContent = isConnected
-      ? (platform.id === "twitter" ? "Connected for account auth. Video publishing to X is the next step." : platform.hint)
-      : "Not connected, so real publishing is disabled for now";
+    node.querySelector("p").textContent = isConnected ? platform.hint : "Not connected, so real publishing is disabled for now";
     node.querySelector(".limit-pill").textContent = `${platform.limit} chars`;
 
     const toggle = node.querySelector('input[type="checkbox"]');
@@ -303,7 +301,6 @@ function renderPlatforms() {
     const styleButton = node.querySelector(".tiny-button");
 
     toggle.checked = canPublishNow;
-    toggle.disabled = platform.id === "twitter";
     node.classList.toggle("disabled", !canPublishNow);
     channelValue.textContent = connectedChannel?.displayName || "Not connected";
 

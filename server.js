@@ -834,6 +834,44 @@ async function curlRaw(url, { method = "GET", headers = [], body = "", binaryPat
   }
 }
 
+async function curlMultipart(url, { headers = [], fields = {}, fileFieldName = "", filePath = "", timeout = 300 } = {}) {
+  const bodyPath = join(tmpdir(), `cliprelay-curl-multipart-${crypto.randomUUID()}.txt`);
+  const args = [
+    "--silent",
+    "--show-error",
+    "--max-time",
+    String(timeout),
+    "--request",
+    "POST",
+    "--output",
+    bodyPath,
+    "--write-out",
+    "%{http_code}",
+  ];
+  if (outboundProxy) args.splice(4, 0, "--proxy", outboundProxy);
+  headers.forEach((header) => args.push("--header", header));
+  Object.entries(fields).forEach(([key, value]) => {
+    args.push("--form-string", `${key}=${value}`);
+  });
+  if (fileFieldName && filePath) {
+    args.push("--form", `${fileFieldName}=@${filePath}`);
+  }
+  args.push(url);
+
+  try {
+    const { stdout } = await execFileAsync("curl", args, { maxBuffer: 10 * 1024 * 1024 });
+    return {
+      status: Number(stdout.trim()),
+      body: await readFile(bodyPath, "utf8").catch(() => ""),
+    };
+  } catch (error) {
+    const detail = error.stderr || error.stdout || error.message;
+    throw new Error(`Multipart upload request failed: ${detail}`);
+  } finally {
+    await unlink(bodyPath).catch(() => {});
+  }
+}
+
 async function requestJson(url, { method = "GET", headers = {}, body = "" } = {}) {
   const headerEntries = Object.entries(headers);
   if (outboundProxy) {
@@ -977,7 +1015,7 @@ async function publishTaskToPlatform(url, res) {
   const platform = parts.at(-2);
   const taskId = decodeURIComponent(parts.at(-1));
   if (platform === "youtube") return uploadTaskToYouTube(new URL(`/api/youtube/upload/${taskId}`, appBaseUrl), res);
-  if (!["instagram", "tiktok"].includes(platform)) return sendJson(res, { error: "Unsupported platform" }, 400);
+  if (!["instagram", "tiktok", "twitter"].includes(platform)) return sendJson(res, { error: "Unsupported platform" }, 400);
 
   const db = await readDb();
   const task = db.tasks.find((item) => item.id === taskId);
@@ -1002,6 +1040,7 @@ async function publishTaskToPlatform(url, res) {
 async function runPlatformUpload(platform, taskId) {
   if (platform === "instagram") return runInstagramUpload(taskId);
   if (platform === "tiktok") return runTikTokUpload(taskId);
+  if (platform === "twitter") return runTwitterUpload(taskId);
 }
 
 async function runYouTubeUpload(taskId) {
@@ -1189,6 +1228,67 @@ async function runTikTokUpload(taskId) {
   }
 }
 
+async function runTwitterUpload(taskId) {
+  const db = await readDb();
+  const task = db.tasks.find((item) => item.id === taskId);
+  if (!task) return;
+  const channel = db.channels?.find((item) => item.id === "twitter" && item.connected);
+  const copy = task.platforms?.find((item) => item.id === "twitter");
+  try {
+    if (!channel?.accessToken) throw new Error("X channel is missing access token. Please reconnect X.");
+    const freshChannel = await ensureTwitterAccessToken(db, channel);
+    const assetPath = join(uploadDir, task.asset.filename);
+    const fileStat = await stat(assetPath);
+    const totalBytes = fileStat.size;
+    await updatePlatformTaskProgress(taskId, "twitter", { status: "publishing", progress: 0, uploadedBytes: 0, totalBytes, note: "Initializing X media upload" });
+    const mediaId = await uploadVideoToX({
+      accessToken: freshChannel.accessToken,
+      assetPath,
+      mimeType: task.asset.mimeType || "video/mp4",
+      totalBytes,
+      onProgress: (progress) => updatePlatformTaskProgress(taskId, "twitter", progress),
+    });
+
+    const text = buildTwitterText(copy, task);
+    const created = await requestJson("https://api.x.com/2/tweets", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${freshChannel.accessToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        text,
+        media: { media_ids: [mediaId] },
+      }),
+    });
+
+    const postId = created.data?.id || "";
+    const postUrl = postId && freshChannel.username ? `https://x.com/${freshChannel.username}/status/${postId}` : "";
+    await updatePlatformTaskProgress(taskId, "twitter", {
+      status: "published",
+      progress: 100,
+      postId,
+      url: postUrl,
+      raw: created,
+      publishedAt: new Date().toISOString(),
+      taskStatus: "published",
+    });
+  } catch (error) {
+    await updatePlatformTaskProgress(taskId, "twitter", {
+      status: "failed",
+      error: youtubeUploadErrorMessage(error),
+      failedAt: new Date().toISOString(),
+      taskStatus: "failed",
+    });
+  }
+}
+
+function buildTwitterText(copy, task) {
+  const parts = [copy?.title, copy?.caption || task.masterCaption].filter(Boolean).map((item) => String(item).trim()).filter(Boolean);
+  const joined = parts.join("\n\n");
+  return compactForPlatform(joined || task.title || "New post", 280);
+}
+
 function tiktokChunkPlan(totalBytes) {
   if (totalBytes <= 5 * 1024 * 1024) {
     return { chunkSize: totalBytes, totalChunkCount: 1 };
@@ -1240,6 +1340,102 @@ async function uploadGenericChunksWithCurl({ uploadUrl, assetPath, mimeType, tot
   }
 }
 
+async function uploadVideoToX({ accessToken, assetPath, mimeType, totalBytes, onProgress }) {
+  const initBody = new URLSearchParams({
+    command: "INIT",
+    total_bytes: String(totalBytes),
+    media_type: mimeType,
+    media_category: "tweet_video",
+  });
+  const init = await requestJson("https://upload.twitter.com/1.1/media/upload.json", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body: initBody.toString(),
+  });
+  const mediaId = init.media_id_string || String(init.media_id || "");
+  if (!mediaId) throw new Error(`X media INIT did not return media_id: ${JSON.stringify(init)}`);
+
+  const fd = openSync(assetPath, "r");
+  const chunkSize = 1024 * 1024;
+  let uploadedBytes = 0;
+  let segmentIndex = 0;
+  try {
+    while (uploadedBytes < totalBytes) {
+      const size = Math.min(chunkSize, totalBytes - uploadedBytes);
+      const buffer = Buffer.alloc(size);
+      const bytesRead = readSync(fd, buffer, 0, size, uploadedBytes);
+      const chunkPath = join(tmpdir(), `cliprelay-x-chunk-${crypto.randomUUID()}.bin`);
+      await writeFile(chunkPath, buffer.subarray(0, bytesRead));
+      try {
+        const append = await curlMultipart("https://upload.twitter.com/1.1/media/upload.json", {
+          headers: [`authorization: Bearer ${accessToken}`],
+          fields: {
+            command: "APPEND",
+            media_id: mediaId,
+            segment_index: String(segmentIndex),
+          },
+          fileFieldName: "media",
+          filePath: chunkPath,
+          timeout: 300,
+        });
+        if (append.status < 200 || append.status >= 300) {
+          throw new Error(`X media APPEND failed: ${append.status} ${append.body}`);
+        }
+        uploadedBytes += bytesRead;
+        segmentIndex += 1;
+        await onProgress?.(youtubeProgress(uploadedBytes, totalBytes));
+      } finally {
+        await unlink(chunkPath).catch(() => {});
+      }
+    }
+  } finally {
+    closeSync(fd);
+  }
+
+  const finalize = await requestJson("https://upload.twitter.com/1.1/media/upload.json", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({ command: "FINALIZE", media_id: mediaId }).toString(),
+  });
+
+  if (finalize.processing_info) {
+    await waitForXMediaProcessing(mediaId, accessToken, onProgress, totalBytes);
+  }
+
+  return mediaId;
+}
+
+async function waitForXMediaProcessing(mediaId, accessToken, onProgress, totalBytes) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const status = await requestJson(`https://upload.twitter.com/1.1/media/upload.json?command=STATUS&media_id=${encodeURIComponent(mediaId)}`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    const processing = status.processing_info;
+    if (!processing || processing.state === "succeeded") {
+      await onProgress?.({ status: "publishing", progress: 95, uploadedBytes: totalBytes, totalBytes, note: "X media processing finished" });
+      return;
+    }
+    if (processing.state === "failed") {
+      throw new Error(`X media processing failed: ${processing.error?.message || processing.error?.name || "Unknown error"}`);
+    }
+    await onProgress?.({
+      status: "publishing",
+      progress: Math.max(80, Math.min(95, Number(processing.progress_percent || 80))),
+      uploadedBytes: totalBytes,
+      totalBytes,
+      note: `X media processing: ${processing.state}`,
+    });
+    await delay(Math.max(1, Number(processing.check_after_secs || 3)) * 1000);
+  }
+  throw new Error("X media processing timed out");
+}
+
 function compactForPlatform(value, limit) {
   const clean = String(value || "").replace(/\s+/g, " ").trim();
   return clean.length > limit ? clean.slice(0, limit - 1) : clean;
@@ -1265,6 +1461,31 @@ async function updatePlatformTaskProgress(taskId, platform, patch) {
   if (taskStatus) task.status = taskStatus;
   task.updatedAt = new Date().toISOString();
   await writeDb(db);
+}
+
+async function ensureTwitterAccessToken(db, channel) {
+  if (channel.accessToken && Number(channel.expiresAt || 0) > Date.now() + 60_000) return channel;
+  if (!channel.refreshToken) return channel;
+  const body = new URLSearchParams({
+    refresh_token: channel.refreshToken,
+    grant_type: "refresh_token",
+    client_id: env.X_CLIENT_ID,
+  });
+  const basicAuth = Buffer.from(`${env.X_CLIENT_ID}:${env.X_CLIENT_SECRET}`).toString("base64");
+  const tokenData = await requestJson("https://api.x.com/2/oauth2/token", {
+    method: "POST",
+    headers: {
+      authorization: `Basic ${basicAuth}`,
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body: body.toString(),
+  });
+  channel.accessToken = tokenData.access_token || channel.accessToken;
+  channel.refreshToken = tokenData.refresh_token || channel.refreshToken;
+  channel.expiresAt = Date.now() + Number(tokenData.expires_in || 7200) * 1000;
+  upsertChannel(db, channel);
+  await writeDb(db);
+  return channel;
 }
 
 async function ensureYouTubeAccessToken(db, channel) {
