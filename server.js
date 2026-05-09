@@ -363,7 +363,14 @@ async function startInstagramAuth(res) {
 
   if (authMode === "facebook_page") {
     authUrl.searchParams.set("client_id", env.META_APP_ID);
-    authUrl.searchParams.set("scope", "pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publish");
+    if (hasMetaConfigId()) {
+      authUrl.searchParams.set("config_id", env.META_CONFIG_ID);
+    } else {
+      authUrl.searchParams.set(
+        "scope",
+        "pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publishing,business_management",
+      );
+    }
   } else {
     authUrl.searchParams.set("client_id", getInstagramAppId());
     authUrl.searchParams.set("force_reauth", "true");
