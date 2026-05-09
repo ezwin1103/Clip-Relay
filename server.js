@@ -1129,28 +1129,24 @@ async function runInstagramUpload(taskId) {
     const videoUrl = `${env.PUBLIC_ASSET_BASE_URL.replace(/\/$/, "")}${task.asset.url}`;
     await updatePlatformTaskProgress(taskId, "instagram", { status: "publishing", progress: 5, note: "Reels container submitted" });
     const token = channel.accessToken;
-    const createBody = JSON.stringify({
-      media_type: "REELS",
-      video_url: videoUrl,
-      caption: copy.caption || task.masterCaption || "",
-      share_to_feed: true,
-    });
+    const createBody = new FormData();
+    createBody.set("access_token", token);
+    createBody.set("media_type", "REELS");
+    createBody.set("video_url", videoUrl);
+    createBody.set("caption", copy.caption || task.masterCaption || "");
+    createBody.set("share_to_feed", "true");
     const container = await requestJson(`https://graph.instagram.com/v24.0/${channel.externalId}/media`, {
       method: "POST",
-      headers: {
-        authorization: `Bearer ${token}`,
-        "content-type": "application/json",
-      },
+      headers: {},
       body: createBody,
     });
     await waitForInstagramContainer(container.id, token, (progress) => updatePlatformTaskProgress(taskId, "instagram", progress));
-    const publishBody = JSON.stringify({ creation_id: container.id });
+    const publishBody = new FormData();
+    publishBody.set("creation_id", container.id);
+    publishBody.set("access_token", token);
     const published = await requestJson(`https://graph.instagram.com/v24.0/${channel.externalId}/media_publish`, {
       method: "POST",
-      headers: {
-        authorization: `Bearer ${token}`,
-        "content-type": "application/json",
-      },
+      headers: {},
       body: publishBody,
     });
     await updatePlatformTaskProgress(taskId, "instagram", {
