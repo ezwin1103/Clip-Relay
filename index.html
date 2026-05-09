@@ -47,40 +47,84 @@
         <section class="view active" id="view-publish">
         <header class="topbar">
           <div>
-            <p class="eyebrow">Create a distribution task</p>
-            <h1>Upload once, tailor every channel</h1>
+            <p class="eyebrow">Publishing workspace</p>
+            <h1>Plan, tailor, and ship one video release</h1>
+            <p class="section-lead">Build the release once, localize platform copy, then publish now or hand it off to drafts for later review.</p>
           </div>
           <div class="top-actions">
-            <button class="ghost-button" type="button" id="saveDraft">Save draft</button>
-            <button class="primary-button" type="button" id="publishAll">Publish now</button>
+            <div class="segmented top-segmented" role="group" aria-label="Publish mode">
+              <button class="active" type="button" data-mode="now">Now</button>
+              <button type="button" data-mode="schedule">Schedule</button>
+            </div>
+            <button class="ghost-button" type="button" id="saveDraft">Save to drafts</button>
+            <button class="primary-button" type="button" id="publishAll">Publish selected</button>
           </div>
         </header>
 
-        <section class="summary-strip" aria-label="Task summary">
-          <div>
-            <span>Video</span>
-            <strong id="summaryVideo">Not uploaded</strong>
+        <section class="publish-overview panel" aria-label="Release overview">
+          <div class="publish-overview-head">
+            <div>
+              <span class="eyebrow">Release overview</span>
+              <strong id="summaryVideo">Not uploaded</strong>
+            </div>
+            <p>Use this workspace for one release at a time. Published attempts move to Library history so the editor can stay focused.</p>
           </div>
-          <div>
-            <span>Selected platforms</span>
-            <strong id="summaryPlatforms">4 / 4</strong>
+          <div class="overview-metrics">
+            <div>
+              <span>Selected platforms</span>
+              <strong id="summaryPlatforms">4 / 4</strong>
+            </div>
+            <div>
+              <span>Readiness</span>
+              <strong id="summaryReady">Needs review</strong>
+            </div>
+            <div>
+              <span>Publish mode</span>
+              <strong id="summaryMode">Publish now</strong>
+            </div>
+            <div>
+              <span>Draft status</span>
+              <strong id="draftState">Not saved</strong>
+            </div>
           </div>
-          <div>
-            <span>Readiness</span>
-            <strong id="summaryReady">Needs review</strong>
-          </div>
-          <div>
-            <span>Publish mode</span>
-            <strong id="summaryMode">Publish now</strong>
+          <div class="publish-checklist" id="publishChecklist">
+            <div class="check-item" id="checkVideo">
+              <span class="check-dot"></span>
+              <div>
+                <strong>Source video</strong>
+                <p>Upload a video or reuse one from Library.</p>
+              </div>
+            </div>
+            <div class="check-item" id="checkPlatforms">
+              <span class="check-dot"></span>
+              <div>
+                <strong>Connected destinations</strong>
+                <p>Select at least one connected platform.</p>
+              </div>
+            </div>
+            <div class="check-item" id="checkCopy">
+              <span class="check-dot"></span>
+              <div>
+                <strong>Required copy</strong>
+                <p>Every selected platform needs valid text before publishing.</p>
+              </div>
+            </div>
+            <div class="check-item" id="checkSchedule">
+              <span class="check-dot"></span>
+              <div>
+                <strong>Schedule time</strong>
+                <p>Only required when the release is set to schedule mode.</p>
+              </div>
+            </div>
           </div>
         </section>
 
-        <div class="content-grid">
+        <div class="publish-grid">
           <section class="panel upload-panel">
             <div class="panel-heading">
               <div>
-                <h2>Video asset</h2>
-                <p>Upload a short-form video, then tailor the publishing copy for each platform.</p>
+                <h2>1. Source video</h2>
+                <p>Upload a short-form asset, review the metadata, and write the master narrative before you split into platform-specific copy.</p>
               </div>
               <span class="badge">MP4 / MOV</span>
             </div>
@@ -125,8 +169,7 @@
             </div>
 
             <div class="toolbar-row">
-              <button class="secondary-button" type="button" id="applyCaption">Apply to all</button>
-              <button class="primary-button" type="button" id="aiOptimizeAll">Optimize all with AI</button>
+              <button class="primary-button" type="button" id="generateCopy">Generate platform copy</button>
               <button class="ghost-button" type="button" id="clearCaptions">Clear copy</button>
             </div>
             <p class="ai-helper" id="aiHelper">AI defaults to natural US/EU English and localizes each platform from your current master caption or existing channel copy.</p>
@@ -135,12 +178,8 @@
           <section class="panel destination-panel">
             <div class="panel-heading">
               <div>
-                <h2>Distribution channels</h2>
-                <p>Choose a channel, posting mode, and platform-native copy for each destination.</p>
-              </div>
-              <div class="segmented" role="group" aria-label="Publish mode">
-                <button class="active" type="button" data-mode="now">Now</button>
-                <button type="button" data-mode="schedule">Schedule</button>
+                <h2>3. Destinations and publish setup</h2>
+                <p>Choose where this release should go, connect missing channels, and finalize platform-native copy before the run starts.</p>
               </div>
             </div>
 
@@ -149,6 +188,10 @@
               <input type="datetime-local" id="scheduleAt" />
             </div>
 
+            <div class="destination-intro" id="destinationIntro">
+              <strong>Upload or choose a source video first</strong>
+              <p>Once the asset is ready, ClipRelay will expand full platform editors here. Until then, you can still review which channels are connected.</p>
+            </div>
             <div class="platform-list" id="platformList"></div>
           </section>
         </div>
@@ -156,8 +199,8 @@
         <section class="panel queue-panel">
             <div class="panel-heading">
               <div>
-              <h2>Live publish run</h2>
-              <p>The primary button starts the selected channels immediately. Progress for this run appears here.</p>
+              <h2>Current run</h2>
+              <p>Only the publish action started from this page appears here. Previous tasks stay in Library so this workspace does not turn into a backlog dump.</p>
             </div>
             <button class="ghost-button" type="button" id="resetQueue">Clear run</button>
           </div>
@@ -168,11 +211,11 @@
         <section class="view" id="view-library">
           <header class="topbar">
             <div>
-              <p class="eyebrow">Asset library</p>
-              <h1>Manage reusable video assets</h1>
+              <p class="eyebrow">Library</p>
+              <h1>Keep assets, drafts, and publish history organized</h1>
+              <p class="section-lead">Treat the library as your operational shelf: reusable source videos on the left, editable drafts and finished task history on the right.</p>
             </div>
             <div class="top-actions">
-              <button class="ghost-button" type="button" id="librarySelectAll">Select all</button>
               <button class="primary-button" type="button" id="libraryUseSelected">Use in publish</button>
             </div>
           </header>
@@ -202,29 +245,39 @@
             </label>
           </section>
 
-          <section class="asset-grid" id="assetGrid" aria-label="Asset list"></section>
+          <section class="library-workbench">
+            <div class="library-primary">
+              <div class="shelf-heading">
+                <div>
+                  <h2>Video shelf</h2>
+                  <p>Reusable uploads that can be reopened in Publish without recreating the release from scratch.</p>
+                </div>
+              </div>
+              <section class="asset-grid" id="assetGrid" aria-label="Asset list"></section>
+            </div>
 
-          <section class="library-columns">
-            <div class="panel list-panel">
-              <div class="panel-heading">
-                <div>
-                  <h2>Drafts</h2>
-                  <p>Pick up multi-platform copy that is not ready to publish yet.</p>
+            <aside class="library-rail">
+              <div class="panel list-panel">
+                <div class="panel-heading">
+                  <div>
+                    <h2>Drafts</h2>
+                    <p>Saved release setups that still need edits, approvals, or final platform copy.</p>
+                  </div>
+                  <span class="badge" id="draftCount">0 items</span>
                 </div>
-                <span class="badge" id="draftCount">0 items</span>
+                <div class="history-list" id="draftList"></div>
               </div>
-              <div class="history-list" id="draftList"></div>
-            </div>
-            <div class="panel list-panel">
-              <div class="panel-heading">
-                <div>
-                  <h2>Publish tasks</h2>
-                  <p>Review created publishing jobs and per-platform results.</p>
+              <div class="panel list-panel">
+                <div class="panel-heading">
+                  <div>
+                    <h2>Publish tasks</h2>
+                    <p>Execution history, platform-level results, and republish actions for completed or failed runs.</p>
+                  </div>
+                  <span class="badge" id="taskCount">0 items</span>
                 </div>
-                <span class="badge" id="taskCount">0 items</span>
+                <div class="history-list" id="taskList"></div>
               </div>
-              <div class="history-list" id="taskList"></div>
-            </div>
+            </aside>
           </section>
         </section>
 
@@ -235,7 +288,7 @@
               <h1>View your cross-platform posting calendar</h1>
             </div>
             <div class="top-actions">
-              <button class="ghost-button" type="button" id="scheduleListMode">List</button>
+              <button class="ghost-button" type="button" id="scheduleListMode">View reminders</button>
               <button class="primary-button" type="button" id="scheduleNewTask">New schedule</button>
             </div>
           </header>
@@ -310,15 +363,15 @@
             <div>
               <h3></h3>
               <p></p>
+              <div class="platform-account-inline">
+                <span class="channel-inline-label">Connection required</span>
+                <strong class="channel-value">Not connected</strong>
+              </div>
             </div>
           </div>
           <span class="limit-pill"></span>
         </div>
         <div class="platform-fields">
-          <label>
-            <span>Connected account</span>
-            <div class="readonly-field channel-value"></div>
-          </label>
           <label class="title-field">
             <span class="title-label">Title</span>
             <input type="text" placeholder="Write a platform-specific title" />
@@ -330,7 +383,21 @@
         </div>
         <div class="card-footer">
           <span class="char-count">0</span>
-          <button class="tiny-button ai-button" type="button">AI optimize</button>
+          <div class="card-actions">
+            <button class="tiny-button connect-platform" type="button">Connect</button>
+            <button class="tiny-button ai-button" type="button">Rewrite with AI</button>
+          </div>
+        </div>
+        <div class="platform-preview">
+          <span class="preview-label">Preview</span>
+          <div class="preview-shell">
+            <div class="preview-header">
+              <span class="preview-badge"></span>
+              <strong class="preview-handle"></strong>
+            </div>
+            <p class="preview-title"></p>
+            <p class="preview-copy"></p>
+          </div>
         </div>
       </article>
     </template>
@@ -386,5 +453,6 @@
     </template>
 
     <script src="./app.js"></script>
+    <div class="toast-stack" id="toastStack" aria-live="polite"></div>
   </body>
 </html>

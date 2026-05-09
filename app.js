@@ -47,6 +47,8 @@ const state = {
   queueTimer: null,
   selectedAssets: new Set(),
   uploadedAsset: null,
+  activeDraftId: null,
+  draftDirty: false,
   db: { drafts: [], tasks: [], assets: [] },
 };
 
@@ -69,6 +71,7 @@ const reminderList = document.querySelector("#reminderList");
 const channelGrid = document.querySelector("#channelGrid");
 const draftList = document.querySelector("#draftList");
 const taskList = document.querySelector("#taskList");
+const toastStack = document.querySelector("#toastStack");
 
 function formatBytes(bytes) {
   if (!bytes) return "-";
@@ -217,7 +220,8 @@ function optimizeCard(card, sourceText) {
   const title = card.querySelector('input[type="text"]');
   const caption = card.querySelector("textarea");
   const button = card.querySelector(".ai-button");
-  const base = (sourceText || caption.value || masterCaption.value).trim();
+  const overLimit = platformNeedsTitle(platform.id) ? title.value.length > platform.limit : caption.value.length > platform.limit;
+  const base = (sourceText || (overLimit && platformNeedsTitle(platform.id) ? title.value : "") || caption.value || masterCaption.value).trim();
 
   if (!base) {
     setAiHelper("Write a master caption first, or add a bit of copy inside the current platform card.");
@@ -268,6 +272,15 @@ function optimizeAllCards() {
   });
 }
 
+function generatePlatformCopy() {
+  if (!masterCaption.value.trim()) {
+    setAiHelper("Write the master caption first, then generate platform copy from it.");
+    return;
+  }
+  applyMasterCaption();
+  optimizeAllCards();
+}
+
 function switchView(view) {
   document.querySelectorAll(".nav-item").forEach((item) => {
     item.classList.toggle("active", item.dataset.view === view);
@@ -280,6 +293,7 @@ function switchView(view) {
 
 function renderPlatforms() {
   platformList.innerHTML = "";
+  document.querySelector("#destinationIntro").hidden = state.hasVideo;
   const connectedChannels = new Map((state.db.channels || []).map((channel) => [channel.id, channel]));
   platforms.forEach((platform) => {
     const connectedChannel = connectedChannels.get(platform.id);
@@ -294,18 +308,23 @@ function renderPlatforms() {
     node.querySelector(".limit-pill").textContent = `${platform.limit} chars`;
 
     const toggle = node.querySelector('input[type="checkbox"]');
-    const accountLabel = node.querySelector(".platform-fields > label:first-child > span");
+    const accountLabel = node.querySelector(".channel-inline-label");
     const channelValue = node.querySelector(".channel-value");
     const titleField = node.querySelector(".title-field");
     const titleLabel = node.querySelector(".title-label");
     const title = node.querySelector('input[type="text"]');
     const caption = node.querySelector("textarea");
     const count = node.querySelector(".char-count");
-    const styleButton = node.querySelector(".tiny-button");
+    const styleButton = node.querySelector(".ai-button");
+    const connectButton = node.querySelector(".connect-platform");
+    const previewHandle = node.querySelector(".preview-handle");
+    const previewTitle = node.querySelector(".preview-title");
+    const previewCopy = node.querySelector(".preview-copy");
 
     toggle.checked = canPublishNow;
     node.classList.toggle("disabled", !canPublishNow);
-    accountLabel.textContent = isConnected ? "Connected account" : "Connection required";
+    node.classList.toggle("awaiting-asset", !state.hasVideo);
+    accountLabel.textContent = isConnected ? "Connected" : "Connection required";
     channelValue.textContent = connectedChannel?.displayName || "Not connected";
 
     const needsTitle = platform.id === "youtube";
@@ -318,20 +337,35 @@ function renderPlatforms() {
         : platform.id === "twitter"
           ? "Write the X post text"
           : "Write the caption";
+    connectButton.textContent = isConnected ? "Connected" : channelActionText(platform.id);
+    connectButton.hidden = isConnected;
+    connectButton.disabled = isConnected;
+    connectButton.addEventListener("click", () => connectPlatform(platform.id));
+    previewHandle.textContent = connectedChannel?.displayName || platform.name;
 
     const refreshCount = () => {
-      const length = caption.value.length;
+      const length = platformNeedsTitle(platform.id) ? title.value.length : caption.value.length;
       count.textContent = `${length} / ${platform.limit}`;
       count.classList.toggle("warning", length > platform.limit);
+      styleButton.textContent = length > platform.limit ? `Shorten for ${platform.logo}` : `Rewrite for ${platform.logo}`;
+      previewTitle.textContent = title.value.trim();
+      previewCopy.textContent = caption.value.trim();
       updateSummary();
     };
 
     toggle.addEventListener("change", () => {
       node.classList.toggle("disabled", !toggle.checked);
+      markDraftDirty();
       updateSummary();
     });
-    caption.addEventListener("input", refreshCount);
-    title.addEventListener("input", updateSummary);
+    caption.addEventListener("input", () => {
+      markDraftDirty();
+      refreshCount();
+    });
+    title.addEventListener("input", () => {
+      markDraftDirty();
+      updateSummary();
+    });
     styleButton.addEventListener("click", () => optimizeCard(node));
 
     refreshCount();
@@ -352,13 +386,44 @@ function updateSummary() {
   const readyCards = selected.filter((card) => {
     return isCardReady(card);
   });
-  const ready = state.hasVideo && selected.length > 0 && readyCards.length === selected.length;
+  const scheduleValue = document.querySelector("#scheduleAt").value;
+  const scheduleValid = state.mode === "now" || isScheduleValid(scheduleValue);
+  const ready = state.hasVideo && selected.length > 0 && readyCards.length === selected.length && scheduleValid;
+  const publishLabel = state.mode === "now"
+    ? `Publish ${selected.length || 0} ${selected.length === 1 ? "post" : "posts"}`
+    : `Schedule ${selected.length || 0} ${selected.length === 1 ? "post" : "posts"}`;
 
   document.querySelector("#summaryPlatforms").textContent = `${selected.length} / ${platforms.length}`;
   document.querySelector("#summaryReady").textContent = ready ? "Ready to publish" : "Needs review";
   document.querySelector("#summaryMode").textContent =
     state.mode === "now" ? "Publish now" : document.querySelector("#scheduleAt").value || "Scheduled";
-  document.querySelector("#publishAll").textContent = state.mode === "now" ? "Publish now" : "Schedule task";
+  document.querySelector("#publishAll").textContent = publishLabel;
+  document.querySelector("#draftState").textContent = state.activeDraftId ? (state.draftDirty ? "Unsaved changes" : "Saved draft") : "Not saved";
+  document.querySelector("#publishAll").disabled = !ready;
+  syncChecklist({
+    hasVideo: state.hasVideo,
+    hasPlatforms: selected.length > 0,
+    hasCopy: selected.length > 0 && readyCards.length === selected.length,
+    hasSchedule: scheduleValid,
+  });
+}
+
+function markDraftDirty() {
+  state.draftDirty = true;
+  updateSummary();
+}
+
+function isScheduleValid(value) {
+  if (!value) return false;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) && time > Date.now();
+}
+
+function syncChecklist(status) {
+  document.querySelector("#checkVideo").classList.toggle("complete", status.hasVideo);
+  document.querySelector("#checkPlatforms").classList.toggle("complete", status.hasPlatforms);
+  document.querySelector("#checkCopy").classList.toggle("complete", status.hasCopy);
+  document.querySelector("#checkSchedule").classList.toggle("complete", status.hasSchedule);
 }
 
 function platformNeedsTitle(platformId) {
@@ -369,13 +434,46 @@ function isCardReady(card) {
   const platformId = card.dataset.platform;
   const title = card.querySelector('input[type="text"]').value.trim();
   const caption = card.querySelector("textarea").value.trim();
+  const platform = platforms.find((item) => item.id === platformId);
+  if (!platform) return false;
+  const overLimit = platformNeedsTitle(platformId) ? title.length > platform.limit : caption.length > platform.limit;
+  if (overLimit) return false;
   if (platformNeedsTitle(platformId)) return Boolean(title && caption);
   return Boolean(caption);
 }
 
+function showToast({ title, body, actions = [] }) {
+  const toast = document.createElement("article");
+  toast.className = "toast";
+  toast.innerHTML = `
+    <strong>${escapeHtml(title)}</strong>
+    <p>${escapeHtml(body)}</p>
+    <div class="toast-actions"></div>
+  `;
+  const actionsWrap = toast.querySelector(".toast-actions");
+  actions.forEach((action) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = action.primary ? "primary-button" : "ghost-button";
+    button.textContent = action.label;
+    button.addEventListener("click", () => {
+      action.onClick?.();
+      toast.remove();
+    });
+    actionsWrap.appendChild(button);
+  });
+  toastStack.appendChild(toast);
+  window.setTimeout(() => {
+    toast.remove();
+  }, 6000);
+}
+
 function handleFile(file) {
   if (!file) return;
+  const firstAssetForSession = !state.hasVideo;
   state.hasVideo = true;
+  markDraftDirty();
+  if (firstAssetForSession) renderPlatforms();
   const url = URL.createObjectURL(file);
   videoPreview.src = url;
   previewWrap.classList.remove("hidden");
@@ -423,11 +521,11 @@ function applyMasterCaption() {
     caption.value = platformText(masterCaption.value, platform);
     caption.dispatchEvent(new Event("input"));
   });
+  markDraftDirty();
 }
 
 function resetQueue() {
-  window.clearInterval(state.queueTimer);
-  queueList.innerHTML = '<p class="queue-empty">No active publish run. Upload a video and click Publish now to start.</p>';
+  queueList.innerHTML = '<p class="queue-empty">No active publish run. Start one from this workspace and the live status will appear here.</p>';
 }
 
 async function publishAll() {
@@ -435,14 +533,18 @@ async function publishAll() {
   resetQueue();
   queueList.innerHTML = "";
   if (!state.hasVideo || cards.length === 0) {
-    queueList.innerHTML = '<p class="queue-empty">Upload a video first and select at least one connected platform.</p>';
+    queueList.innerHTML = '<p class="queue-empty">Upload a source video and turn on at least one connected destination before publishing.</p>';
+    return;
+  }
+  if (state.mode === "schedule" && !isScheduleValid(document.querySelector("#scheduleAt").value)) {
+    queueList.innerHTML = '<p class="queue-empty">Choose a future publish time before scheduling this release.</p>';
     return;
   }
   const incomplete = cards.some((card) => {
     return !isCardReady(card);
   });
   if (incomplete) {
-    queueList.innerHTML = '<p class="queue-empty">Complete the required copy for every selected platform, or use AI to optimize all of them.</p>';
+    queueList.innerHTML = '<p class="queue-empty">Finish the required copy for every selected destination, or let AI localize the remaining cards first.</p>';
     return;
   }
 
@@ -595,11 +697,7 @@ function renderAssets() {
     node.querySelector(".asset-tags").innerHTML = asset.tags.map((tag) => `<span>${tag}</span>`).join("");
 
     const toggleAsset = () => {
-      if (state.selectedAssets.has(asset.id)) {
-        state.selectedAssets.delete(asset.id);
-      } else {
-        state.selectedAssets.add(asset.id);
-      }
+      state.selectedAssets = new Set(state.selectedAssets.has(asset.id) ? [] : [asset.id]);
       renderAssets();
     };
     node.querySelector(".asset-check").addEventListener("click", toggleAsset);
@@ -617,8 +715,10 @@ function useAsset(asset) {
   document.querySelector("#fileSize").textContent = asset.desc.split("·").at(-1).trim();
   document.querySelector("#fileDuration").textContent = asset.duration;
   document.querySelector("#fileRatio").textContent = asset.ratio;
+  const firstAssetForSession = !state.hasVideo;
   state.uploadedAsset = asset.serverAsset || null;
   state.hasVideo = true;
+  if (firstAssetForSession) renderPlatforms();
   if (asset.url) {
     videoPreview.src = asset.url;
     previewWrap.classList.remove("hidden");
@@ -626,6 +726,7 @@ function useAsset(asset) {
     emptyPreview.style.display = "none";
   }
   switchView("publish");
+  markDraftDirty();
   updateSummary();
 }
 
@@ -727,6 +828,9 @@ function renderTaskList() {
     const platformButtons = (task.platforms || [])
       .map((platform) => platformPublishButtonHtml(task, platform))
       .join("");
+    const detailRows = (task.platforms || [])
+      .map((platform) => taskDetailRowHtml(task, platform))
+      .join("");
     item.innerHTML = `
       <div class="history-main">
         <div>
@@ -740,19 +844,41 @@ function renderTaskList() {
       </div>
       <div class="history-actions">
         <button class="tiny-button load-task" type="button">Reuse task</button>
+        <button class="tiny-button detail-task" type="button">View details</button>
         ${platformButtons}
-        <button class="tiny-button mark-task" type="button">Mark published</button>
         <button class="tiny-button danger-button delete-task" type="button">Delete</button>
       </div>
+      <div class="task-detail" hidden>${detailRows}</div>
     `;
     item.querySelector(".load-task").addEventListener("click", () => loadDraft(task));
+    item.querySelector(".detail-task").addEventListener("click", () => {
+      const detail = item.querySelector(".task-detail");
+      const expanded = !detail.hidden;
+      detail.hidden = expanded;
+      item.querySelector(".detail-task").textContent = expanded ? "View details" : "Hide details";
+    });
     item.querySelectorAll(".platform-task").forEach((button) => {
       button.addEventListener("click", () => publishTaskToPlatform(task.id, button.dataset.platform));
     });
-    item.querySelector(".mark-task").addEventListener("click", () => updateTaskStatus(task.id, "published"));
     item.querySelector(".delete-task").addEventListener("click", () => deleteTask(task.id));
     taskList.appendChild(item);
   });
+}
+
+function taskDetailRowHtml(task, platform) {
+  const result = task.publishResults?.[platform.id] || {};
+  return `
+    <article class="task-detail-row">
+      <div class="task-detail-head">
+        <strong>${escapeHtml(platform.name)}</strong>
+        <span>${escapeHtml(statusLabel(result.status || task.status || "queued"))}</span>
+      </div>
+      ${platform.title ? `<p><strong>Title:</strong> ${escapeHtml(platform.title)}</p>` : ""}
+      ${platform.caption ? `<p><strong>Copy:</strong> ${escapeHtml(platform.caption)}</p>` : ""}
+      ${result.error ? `<p class="error-text">${escapeHtml(result.error)}</p><p class="next-step"><strong>Next step:</strong> ${escapeHtml(suggestNextStep(result.error))}</p>` : ""}
+      ${result.url ? `<p><a href="${escapeHtml(result.url)}" target="_blank" rel="noreferrer">Open live post</a></p>` : ""}
+    </article>
+  `;
 }
 
 function platformProgressHtml(task, platform) {
@@ -772,7 +898,7 @@ function platformResultLink(task, platform) {
 function platformErrorHtml(task, platform) {
   const result = task.publishResults?.[platform.id];
   if (!result?.error) return "";
-  return `<p class="error-text">${escapeHtml(platform.name)}: ${escapeHtml(result.error)}</p>`;
+  return `<p class="error-text">${escapeHtml(platform.name)}: ${escapeHtml(result.error)}</p><p class="next-step">${escapeHtml(suggestNextStep(result.error))}</p>`;
 }
 
 function platformPublishButtonHtml(task, platform) {
@@ -798,10 +924,13 @@ function formatDate(value) {
 }
 
 function loadDraft(draft) {
+  state.activeDraftId = draft.id || null;
+  state.draftDirty = false;
   masterCaption.value = draft.masterCaption || "";
   state.mode = draft.mode || "now";
   state.uploadedAsset = draft.asset || null;
   state.hasVideo = Boolean(draft.asset || draft.title);
+  renderPlatforms();
   document.querySelector("#summaryVideo").textContent = draft.title || draft.asset?.title || "Draft asset";
   document.querySelector("#scheduleAt").value = draft.scheduleAt || "";
 
@@ -821,6 +950,7 @@ function loadDraft(draft) {
     caption.value = saved.caption || "";
     caption.dispatchEvent(new Event("input"));
   });
+  state.draftDirty = false;
   switchView("publish");
   updateSummary();
   setAiHelper("Draft loaded from Library. Keep editing in Publish, then save again or publish when ready.");
@@ -973,6 +1103,22 @@ function channelActionText(platformId) {
   return "Connect X";
 }
 
+function connectPlatform(platformId) {
+  if (platformId === "youtube") window.location.href = "/auth/youtube";
+  if (platformId === "instagram") window.location.href = "/auth/instagram";
+  if (platformId === "tiktok") window.location.href = "/auth/tiktok";
+  if (platformId === "twitter") window.location.href = "/auth/twitter";
+}
+
+function suggestNextStep(message = "") {
+  const text = String(message).toLowerCase();
+  if (text.includes("not connected")) return "Connect the channel from this card or the Channels page, then try again.";
+  if (text.includes("oauth")) return "Reconnect the affected channel so ClipRelay can refresh authorization.";
+  if (text.includes("upload")) return "Retry the upload or choose a different source asset from Library.";
+  if (text.includes("public https video url")) return "Expose the video through a public HTTPS asset URL before publishing to Instagram.";
+  return "Open the task details, review the error, then retry the affected platform.";
+}
+
 function updateChannelSummary() {
   const connected = [...document.querySelectorAll(".channel-card")].filter((card) => card.dataset.connected === "true").length;
   document.querySelector("#connectedCount").textContent = `${connected} / ${platforms.length}`;
@@ -1000,9 +1146,9 @@ videoInput.addEventListener("change", (event) => handleFile(event.target.files[0
 
 dropzone.addEventListener("drop", (event) => handleFile(event.dataTransfer.files[0]));
 
-document.querySelector("#applyCaption").addEventListener("click", applyMasterCaption);
-document.querySelector("#aiOptimizeAll").addEventListener("click", optimizeAllCards);
+document.querySelector("#generateCopy").addEventListener("click", generatePlatformCopy);
 document.querySelector("#clearCaptions").addEventListener("click", () => {
+  markDraftDirty();
   masterCaption.value = "";
   getCards().forEach((card) => {
     card.querySelector('input[type="text"]').value = "";
@@ -1016,10 +1162,19 @@ document.querySelector("#resetQueue").addEventListener("click", resetQueue);
 document.querySelector("#saveDraft").addEventListener("click", () => {
   document.querySelector("#summaryReady").textContent = "Saving";
   apiRequest("/api/draft", { method: "POST", body: JSON.stringify(buildDraftPayload()) })
-    .then(() => {
+    .then((data) => {
+      state.activeDraftId = data.draft?.id || state.activeDraftId;
+      state.draftDirty = false;
       document.querySelector("#summaryReady").textContent = "Draft saved";
       loadServerState();
       setAiHelper("Draft saved to Library. Open Library > Drafts any time to edit it again.");
+      showToast({
+        title: "Draft saved",
+        body: "Your release setup is now stored in Library > Drafts.",
+        actions: [
+          { label: "View drafts", onClick: () => switchView("library") },
+        ],
+      });
       window.setTimeout(updateSummary, 1400);
     })
     .catch((error) => {
@@ -1028,6 +1183,8 @@ document.querySelector("#saveDraft").addEventListener("click", () => {
     });
 });
 document.querySelector("#scheduleAt").addEventListener("input", updateSummary);
+document.querySelector("#scheduleAt").addEventListener("input", markDraftDirty);
+masterCaption.addEventListener("input", markDraftDirty);
 
 document.querySelectorAll(".segmented button").forEach((button) => {
   button.addEventListener("click", () => {
@@ -1035,6 +1192,7 @@ document.querySelectorAll(".segmented button").forEach((button) => {
     button.classList.add("active");
     state.mode = button.dataset.mode;
     scheduleRow.classList.toggle("visible", state.mode === "schedule");
+    markDraftDirty();
     updateSummary();
   });
 });
@@ -1047,16 +1205,10 @@ document.querySelectorAll(".nav-item").forEach((button) => {
   document.querySelector(selector).addEventListener("input", renderAssets);
 });
 
-document.querySelector("#librarySelectAll").addEventListener("click", () => {
-  assets.forEach((asset) => state.selectedAssets.add(asset.id));
-  renderAssets();
-});
-
 document.querySelector("#libraryUseSelected").addEventListener("click", () => {
   const asset = assets.find((item) => state.selectedAssets.has(item.id)) || assets[0];
   if (!asset) return;
   useAsset(asset);
-  if (state.selectedAssets.size > 1) document.querySelector("#summaryVideo").textContent = `${state.selectedAssets.size} assets selected`;
 });
 
 document.querySelector("#scheduleNewTask").addEventListener("click", () => switchView("publish"));
