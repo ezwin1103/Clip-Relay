@@ -868,6 +868,29 @@ textarea {
   background: #fbfcfb;
 }
 
+.preview-shell[data-platform="instagram"] {
+  background: linear-gradient(180deg, #ffffff, #fcf8fb);
+}
+
+.preview-shell[data-platform="tiktok"] {
+  background: linear-gradient(180deg, #141414, #1d1d1d);
+  border-color: #272727;
+}
+
+.preview-shell[data-platform="tiktok"] .preview-handle,
+.preview-shell[data-platform="tiktok"] .preview-copy,
+.preview-shell[data-platform="tiktok"] .preview-title {
+  color: #f5f5f5;
+}
+
+.preview-shell[data-platform="twitter"] {
+  background: linear-gradient(180deg, #ffffff, #f7fafd);
+}
+
+.preview-shell[data-platform="youtube"] {
+  background: linear-gradient(180deg, #ffffff, #fbfbfb);
+}
+
 .preview-header {
   display: flex;
   align-items: center;
@@ -880,6 +903,30 @@ textarea {
   height: 24px;
   border-radius: 999px;
   background: #d8dfda;
+}
+
+.preview-media {
+  aspect-ratio: 9 / 16;
+  width: min(110px, 100%);
+  margin: 0 0 10px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #ecefeb, #cfd8d1);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.preview-shell[data-platform="youtube"] .preview-media {
+  aspect-ratio: 9 / 16;
+  width: min(104px, 100%);
+  background: linear-gradient(145deg, #2a2a2a, #0f0f0f);
+}
+
+.preview-shell[data-platform="instagram"] .preview-media {
+  background: linear-gradient(145deg, #f3d2ea, #dcdff7);
+}
+
+.preview-shell[data-platform="tiktok"] .preview-media {
+  background: linear-gradient(145deg, #2a2a2a, #101010);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 .preview-handle {

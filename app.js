@@ -1,15 +1,5 @@
 const platforms = [
   {
-    id: "youtube",
-    name: "YouTube Shorts",
-    logo: "YT",
-    hint: "Short title plus a strong hook",
-    limit: 100,
-    channels: ["Jayden Studio", "Brand Shorts", "Creator Lab"],
-    color: "#d64545",
-    suffix: "#Shorts #YouTubeShorts",
-  },
-  {
     id: "instagram",
     name: "Instagram Reels",
     logo: "IG",
@@ -39,6 +29,16 @@ const platforms = [
     color: "#356eb7",
     suffix: "#buildinpublic",
   },
+  {
+    id: "youtube",
+    name: "YouTube Shorts",
+    logo: "YT",
+    hint: "Short title plus a strong hook",
+    limit: 100,
+    channels: ["Jayden Studio", "Brand Shorts", "Creator Lab"],
+    color: "#d64545",
+    suffix: "#Shorts #YouTubeShorts",
+  },
 ];
 
 const state = {
@@ -54,6 +54,7 @@ const state = {
 
 let assets = [];
 let scheduleItems = [];
+const platformOrder = { instagram: 0, youtube: 1, tiktok: 2, twitter: 3 };
 
 const platformList = document.querySelector("#platformList");
 const queueList = document.querySelector("#queueList");
@@ -295,12 +296,20 @@ function renderPlatforms() {
   platformList.innerHTML = "";
   document.querySelector("#destinationIntro").hidden = state.hasVideo;
   const connectedChannels = new Map((state.db.channels || []).map((channel) => [channel.id, channel]));
-  platforms.forEach((platform) => {
+  [...platforms]
+    .sort((a, b) => {
+      const aConnected = Boolean(connectedChannels.get(a.id)?.connected);
+      const bConnected = Boolean(connectedChannels.get(b.id)?.connected);
+      if (aConnected !== bConnected) return aConnected ? -1 : 1;
+      return (platformOrder[a.id] ?? 99) - (platformOrder[b.id] ?? 99);
+    })
+    .forEach((platform) => {
     const connectedChannel = connectedChannels.get(platform.id);
     const isConnected = Boolean(connectedChannel?.connected);
     const canPublishNow = isConnected;
     const node = template.content.firstElementChild.cloneNode(true);
     node.dataset.platform = platform.id;
+    node.dataset.connected = isConnected ? "true" : "false";
     node.querySelector(".platform-logo").textContent = platform.logo;
     node.querySelector(".platform-logo").style.background = platform.color;
     node.querySelector("h3").textContent = platform.name;
@@ -318,12 +327,17 @@ function renderPlatforms() {
     const styleButton = node.querySelector(".ai-button");
     const connectButton = node.querySelector(".connect-platform");
     const previewHandle = node.querySelector(".preview-handle");
+    const previewMedia = node.querySelector(".preview-media");
     const previewTitle = node.querySelector(".preview-title");
     const previewCopy = node.querySelector(".preview-copy");
+    const previewWrap = node.querySelector(".platform-preview");
+    const previewShell = node.querySelector(".preview-shell");
 
     toggle.checked = canPublishNow;
     node.classList.toggle("disabled", !canPublishNow);
     node.classList.toggle("awaiting-asset", !state.hasVideo);
+    node.classList.toggle("connected-platform", isConnected);
+    previewShell.dataset.platform = platform.id;
     accountLabel.textContent = isConnected ? "Connected" : "Connection required";
     channelValue.textContent = connectedChannel?.displayName || "Not connected";
 
@@ -342,14 +356,17 @@ function renderPlatforms() {
     connectButton.disabled = isConnected;
     connectButton.addEventListener("click", () => connectPlatform(platform.id));
     previewHandle.textContent = connectedChannel?.displayName || platform.name;
+    previewWrap.hidden = !isConnected || !state.hasVideo;
+    previewMedia.hidden = platform.id === "twitter";
 
     const refreshCount = () => {
       const length = platformNeedsTitle(platform.id) ? title.value.length : caption.value.length;
       count.textContent = `${length} / ${platform.limit}`;
       count.classList.toggle("warning", length > platform.limit);
       styleButton.textContent = length > platform.limit ? `Shorten for ${platform.logo}` : `Rewrite for ${platform.logo}`;
-      previewTitle.textContent = title.value.trim();
+      previewTitle.textContent = platform.id === "youtube" ? title.value.trim() : "";
       previewCopy.textContent = caption.value.trim();
+      previewTitle.hidden = platform.id !== "youtube" || !title.value.trim();
       updateSummary();
     };
 
