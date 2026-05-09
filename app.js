@@ -75,6 +75,7 @@ const channelGrid = document.querySelector("#channelGrid");
 const draftList = document.querySelector("#draftList");
 const taskList = document.querySelector("#taskList");
 const toastStack = document.querySelector("#toastStack");
+const STATE_CACHE_KEY = "cliprelay-state-cache";
 
 function formatBytes(bytes) {
   if (!bytes) return "-";
@@ -121,6 +122,7 @@ async function loadServerState() {
   try {
     const db = await apiRequest("/api/state");
     state.db = db;
+    window.localStorage.setItem(STATE_CACHE_KEY, JSON.stringify(db));
     assets = (db.assets || []).map(normalizeServerAsset);
     scheduleItems = (db.tasks || []).map(taskToScheduleItem);
     renderPlatforms();
@@ -130,6 +132,22 @@ async function loadServerState() {
     renderChannels();
   } catch (error) {
     console.warn("Could not load the local backend state. Falling back to prototype data.", error);
+    try {
+      const cached = window.localStorage.getItem(STATE_CACHE_KEY);
+      if (cached) {
+        const db = JSON.parse(cached);
+        state.db = db;
+        assets = (db.assets || []).map(normalizeServerAsset);
+        scheduleItems = (db.tasks || []).map(taskToScheduleItem);
+        renderPlatforms();
+        renderAssets();
+        renderSchedule();
+        renderHistoryLists();
+        renderChannels();
+      }
+    } catch (cacheError) {
+      console.warn("Could not restore cached local state.", cacheError);
+    }
   }
 }
 
@@ -336,7 +354,9 @@ function renderPlatforms() {
     const previewFallback = node.querySelector(".preview-media-fallback");
     const previewChip = node.querySelector(".preview-platform-chip");
     const previewTitle = node.querySelector(".preview-title");
+    const previewCopyHandle = node.querySelector(".preview-copy-handle");
     const previewCopy = node.querySelector(".preview-copy");
+    const previewMore = node.querySelector(".preview-more");
     const previewWrap = node.querySelector(".platform-preview");
     const previewShell = node.querySelector(".preview-shell");
     const previewAvatarUrl = connectedChannel?.thumbnail || connectedChannel?.avatarUrl || "";
@@ -379,7 +399,10 @@ function renderPlatforms() {
       count.classList.toggle("warning", length > platform.limit);
       styleButton.textContent = length > platform.limit ? `Shorten for ${platform.logo}` : `Rewrite for ${platform.logo}`;
       previewTitle.textContent = platform.id === "youtube" ? title.value.trim() : "";
-      previewCopy.textContent = caption.value.trim();
+      const previewText = previewCaptionText(platform, caption.value.trim());
+      previewCopyHandle.textContent = platform.id === "youtube" ? "" : `${connectedChannel?.displayName || platform.name} `;
+      previewCopy.textContent = previewText.text;
+      previewMore.textContent = previewText.truncated ? "more" : "";
       previewTitle.hidden = platform.id !== "youtube" || !title.value.trim();
       updateSummary();
     };
@@ -493,10 +516,10 @@ function previewInitials(name) {
 }
 
 function previewSublineText(platform, channel) {
-  if (platform.id === "instagram") return "Reel preview";
+  if (platform.id === "instagram") return "Reel";
   if (platform.id === "tiktok") return channel?.username ? `@${channel.username}` : "TikTok preview";
   if (platform.id === "twitter") return channel?.username ? `@${channel.username}` : "Post preview";
-  return "Shorts preview";
+  return "Shorts";
 }
 
 function previewChipText(platform) {
@@ -504,6 +527,23 @@ function previewChipText(platform) {
   if (platform.id === "tiktok") return "TikTok";
   if (platform.id === "twitter") return "Media card";
   return "Shorts";
+}
+
+function previewCaptionText(platform, caption) {
+  const clean = String(caption || "").replace(/\s+/g, " ").trim();
+  if (!clean) return { text: "", truncated: false };
+  const limitMap = {
+    instagram: 118,
+    tiktok: 92,
+    twitter: 180,
+    youtube: 140,
+  };
+  const limit = limitMap[platform.id] || 120;
+  if (clean.length <= limit) return { text: clean, truncated: false };
+  return {
+    text: `${clean.slice(0, limit).trimEnd()}...`,
+    truncated: true,
+  };
 }
 
 function getCards() {
