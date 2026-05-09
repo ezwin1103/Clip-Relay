@@ -1129,24 +1129,29 @@ async function runInstagramUpload(taskId) {
     const videoUrl = `${env.PUBLIC_ASSET_BASE_URL.replace(/\/$/, "")}${task.asset.url}`;
     await updatePlatformTaskProgress(taskId, "instagram", { status: "publishing", progress: 5, note: "Reels container submitted" });
     const token = channel.accessToken;
-    const createBody = new URLSearchParams({
+    const createBody = JSON.stringify({
       media_type: "REELS",
       video_url: videoUrl,
       caption: copy.caption || task.masterCaption || "",
-      share_to_feed: "true",
-      access_token: token,
+      share_to_feed: true,
     });
-    const container = await requestJson(`https://graph.facebook.com/v24.0/${channel.externalId}/media`, {
+    const container = await requestJson(`https://graph.instagram.com/v24.0/${channel.externalId}/media`, {
       method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: createBody.toString(),
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: createBody,
     });
     await waitForInstagramContainer(container.id, token, (progress) => updatePlatformTaskProgress(taskId, "instagram", progress));
-    const publishBody = new URLSearchParams({ creation_id: container.id, access_token: token });
-    const published = await requestJson(`https://graph.facebook.com/v24.0/${channel.externalId}/media_publish`, {
+    const publishBody = JSON.stringify({ creation_id: container.id });
+    const published = await requestJson(`https://graph.instagram.com/v24.0/${channel.externalId}/media_publish`, {
       method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: publishBody.toString(),
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: publishBody,
     });
     await updatePlatformTaskProgress(taskId, "instagram", {
       status: "published",
@@ -1170,7 +1175,7 @@ async function runInstagramUpload(taskId) {
 async function waitForInstagramContainer(containerId, accessToken, onProgress) {
   for (let attempt = 0; attempt < 24; attempt += 1) {
     const status = await requestJson(
-      `https://graph.facebook.com/v24.0/${containerId}?fields=status_code,status&access_token=${encodeURIComponent(accessToken)}`,
+      `https://graph.instagram.com/v24.0/${containerId}?fields=status_code,status&access_token=${encodeURIComponent(accessToken)}`,
     );
     if (status.status_code === "FINISHED") {
       await onProgress?.({ status: "publishing", progress: 85, note: "Reels container finished processing" });
