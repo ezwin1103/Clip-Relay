@@ -358,6 +358,7 @@ function renderPlatforms() {
     const previewCopyHandle = node.querySelector(".preview-copy-handle");
     const previewCopy = node.querySelector(".preview-copy");
     const previewMore = node.querySelector(".preview-more");
+    const previewMeta = node.querySelector(".preview-meta");
     const previewWrap = node.querySelector(".platform-preview");
     const previewShell = node.querySelector(".preview-shell");
     const previewAvatarUrl = connectedChannel?.thumbnail || connectedChannel?.avatarUrl || "";
@@ -404,6 +405,7 @@ function renderPlatforms() {
       previewCopyHandle.textContent = platform.id === "youtube" ? "" : `${connectedChannel?.displayName || platform.name} `;
       previewCopy.textContent = previewText.text;
       previewMore.textContent = previewText.truncated ? "more" : "";
+      previewMeta.innerHTML = previewMetaMarkup(platform);
       previewTitle.hidden = platform.id !== "youtube" || !title.value.trim();
       updateSummary();
     };
@@ -545,6 +547,19 @@ function previewCaptionText(platform, caption) {
     text: `${clean.slice(0, limit).trimEnd()}...`,
     truncated: true,
   };
+}
+
+function previewMetaMarkup(platform) {
+  if (platform.id === "instagram") {
+    return '<span class="preview-meta-item">View insights</span>';
+  }
+  if (platform.id === "tiktok") {
+    return '<span class="preview-meta-item">12.4K views</span><span class="preview-meta-item">1.1K likes</span>';
+  }
+  if (platform.id === "twitter") {
+    return '<span class="preview-meta-item">1 reply</span><span class="preview-meta-item">7 reposts</span><span class="preview-meta-item">32 likes</span>';
+  }
+  return '<span class="preview-meta-item">2.1K views</span><span class="preview-meta-item">98% retention</span>';
 }
 
 function getCards() {
