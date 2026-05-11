@@ -337,7 +337,7 @@
               <strong id="inboxTotal">0</strong>
             </div>
             <div>
-              <span>Needs reply</span>
+              <span>Open items</span>
               <strong id="inboxNeedsReply">0</strong>
             </div>
             <div>
@@ -376,9 +376,9 @@
                   <span>Status</span>
                   <select id="inboxStatus">
                     <option value="all">All items</option>
-                    <option value="needs_reply">Needs reply</option>
+                    <option value="open">Open items</option>
                     <option value="replied">Replied</option>
-                    <option value="read_only">Read only</option>
+                    <option value="dismissed">No reply needed</option>
                   </select>
                 </label>
               </section>
@@ -391,10 +391,6 @@
                   <h2>Reply workspace</h2>
                   <p>Review the full comment, its source post, and the next best action before you reply.</p>
                 </div>
-              </div>
-              <div class="inbox-empty-detail" id="inboxEmptyState">
-                <strong>Select a comment to inspect it</strong>
-                <p>Once selected, we will show the original comment, current status, and whether we can reply directly from ClipRelay.</p>
               </div>
               <div class="inbox-detail" id="inboxDetail" hidden>
                 <div class="inbox-detail-head">
@@ -411,6 +407,14 @@
                   <p id="detailCommentText"></p>
                 </div>
 
+                <div class="inbox-signal-card">
+                  <div class="inbox-signal-head">
+                    <strong>Signal summary</strong>
+                    <span class="signal-badge" id="detailSignalBadge">Positive</span>
+                  </div>
+                  <p id="detailSignalSummary"></p>
+                </div>
+
                 <div class="inbox-context-grid">
                   <div>
                     <span>Post</span>
@@ -421,8 +425,8 @@
                     <strong id="detailChannel">-</strong>
                   </div>
                   <div>
-                    <span>Status</span>
-                    <strong id="detailStatus">-</strong>
+                    <span>Review state</span>
+                    <strong id="detailStatus">Open</strong>
                   </div>
                   <div>
                     <span>Action</span>
@@ -435,6 +439,7 @@
                   <textarea id="replyDraft" rows="5" placeholder="Write a reply or use AI to draft one in the same tone."></textarea>
                 </label>
                 <div class="toolbar-row inbox-reply-actions">
+                  <button class="ghost-button" type="button" id="markNoReply">No reply needed</button>
                   <button class="ghost-button" type="button" id="generateReply">Draft reply with AI</button>
                   <button class="primary-button" type="button" id="sendReply">Send reply</button>
                 </div>

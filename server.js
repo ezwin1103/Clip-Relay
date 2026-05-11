@@ -61,6 +61,7 @@ createServer(async (req, res) => {
     if (url.pathname === "/api/ai/optimize" && req.method === "POST") return optimizeText(req, res);
     if (url.pathname === "/api/inbox" && req.method === "GET") return getInbox(res);
     if (url.pathname === "/api/inbox/reply" && req.method === "POST") return replyInboxItem(req, res);
+    if (url.pathname === "/api/inbox/review" && req.method === "POST") return reviewInboxItem(req, res);
     if (url.pathname === "/api/tasks" && req.method === "POST") return saveTask(req, res);
     if (url.pathname.startsWith("/api/tasks/") && req.method === "PATCH") return updateTask(url, req, res);
     if (url.pathname.startsWith("/api/tasks/") && req.method === "DELETE") return deleteTask(url, res);
@@ -121,6 +122,7 @@ function defaultDb() {
     tasks: [],
     channels: [],
     inboxReplies: [],
+    inboxReviews: [],
     oauthStates: {},
     updatedAt: new Date().toISOString(),
   };
@@ -1148,9 +1150,27 @@ async function replyInboxItem(req, res) {
   sendJson(res, { ok: true, reply: replyRecord });
 }
 
+async function reviewInboxItem(req, res) {
+  const payload = await readJson(req);
+  const db = await readDb();
+  db.inboxReviews = db.inboxReviews || [];
+  const record = {
+    itemId: String(payload.itemId || ""),
+    decision: payload.decision === "dismissed" ? "dismissed" : "open",
+    updatedAt: new Date().toISOString(),
+  };
+  if (!record.itemId) return sendJson(res, { error: "Inbox item is required" }, 400);
+  const index = db.inboxReviews.findIndex((entry) => entry.itemId === record.itemId);
+  if (index >= 0) db.inboxReviews[index] = record;
+  else db.inboxReviews.unshift(record);
+  await writeDb(db);
+  sendJson(res, { ok: true, review: record });
+}
+
 async function collectInboxItems(db) {
   const channels = db.channels || [];
   const replies = new Map((db.inboxReplies || []).map((entry) => [entry.itemId, entry]));
+  const reviews = new Map((db.inboxReviews || []).map((entry) => [entry.itemId, entry]));
   const items = [];
 
   const youtube = channels.find((entry) => entry.id === "youtube" && entry.connected);
@@ -1160,7 +1180,8 @@ async function collectInboxItems(db) {
       const youtubeItems = await fetchYouTubeInbox(fresh);
       youtubeItems.forEach((item) => {
         const replyRecord = replies.get(item.id);
-        items.push({ ...item, status: replyRecord ? "replied" : "needs_reply", replyRecord });
+        const reviewRecord = reviews.get(item.id);
+        items.push({ ...item, status: replyRecord ? "replied" : "open", reviewState: replyRecord ? "replied" : reviewRecord?.decision || "open", replyRecord });
       });
     } catch (error) {
       console.warn("Could not fetch YouTube inbox:", error.message || error);
@@ -1174,7 +1195,8 @@ async function collectInboxItems(db) {
       const instagramItems = await fetchInstagramInbox(resolved);
       instagramItems.forEach((item) => {
         const replyRecord = replies.get(item.id);
-        items.push({ ...item, status: replyRecord ? "replied" : "needs_reply", replyRecord });
+        const reviewRecord = reviews.get(item.id);
+        items.push({ ...item, status: replyRecord ? "replied" : "open", reviewState: replyRecord ? "replied" : reviewRecord?.decision || "open", replyRecord });
       });
     } catch (error) {
       console.warn("Could not fetch Instagram inbox:", error.message || error);
@@ -1188,14 +1210,40 @@ async function collectInboxItems(db) {
       const twitterItems = await fetchTwitterInbox(fresh);
       twitterItems.forEach((item) => {
         const replyRecord = replies.get(item.id);
-        items.push({ ...item, status: replyRecord ? "replied" : "needs_reply", replyRecord });
+        const reviewRecord = reviews.get(item.id);
+        items.push({ ...item, status: replyRecord ? "replied" : "open", reviewState: replyRecord ? "replied" : reviewRecord?.decision || "open", replyRecord });
       });
     } catch (error) {
       console.warn("Could not fetch X inbox:", error.message || error);
     }
   }
 
-  return items.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  return items
+    .map((item) => ({ ...item, signal: summarizeInboxSignal(item.text || "") }))
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+}
+
+function summarizeInboxSignal(text) {
+  const raw = String(text || "").trim();
+  const lower = raw.toLowerCase();
+  const hasQuestion = raw.includes("?") || /\bhow\b|\bwhat\b|\bwhere\b|\bwhy\b|\bcan\b/i.test(raw);
+  const positive = /\b(love|great|amazing|awesome|cool|helpful|useful|thanks|thank you|lol|haha)\b/i.test(lower);
+  const confused = /\b(confused|don't understand|dont understand|not sure|how do|what is|why)\b/i.test(lower);
+  const issue = /\b(bug|broken|issue|problem|doesn't work|doesnt work|hard|annoying|pain|took me years)\b/i.test(lower);
+
+  if (issue && hasQuestion) {
+    return { tone: "issue", label: "Pain point", summary: "The commenter sounds frustrated and is pointing at a workflow problem or friction point." };
+  }
+  if (issue) {
+    return { tone: "issue", label: "Pain point", summary: "This comment highlights frustration or a product/workflow pain point worth tracking." };
+  }
+  if (confused || hasQuestion) {
+    return { tone: "question", label: "Question", summary: "This looks like a question or clarification request. It may be worth replying if you want to unblock the viewer." };
+  }
+  if (positive) {
+    return { tone: "positive", label: "Positive", summary: "This is a positive reaction or light social engagement. You can reply if you want to encourage more conversation." };
+  }
+  return { tone: "neutral", label: "Observation", summary: "This reads like neutral feedback or a passing observation. Review it for insight, then decide whether a reply adds value." };
 }
 
 async function fetchYouTubeInbox(channel) {

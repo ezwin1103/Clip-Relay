@@ -78,8 +78,6 @@ const taskList = document.querySelector("#taskList");
 const toastStack = document.querySelector("#toastStack");
 const inboxList = document.querySelector("#inboxList");
 const inboxDetail = document.querySelector("#inboxDetail");
-const inboxEmptyState = document.querySelector("#inboxEmptyState");
-const replyDraft = document.querySelector("#replyDraft");
 const STATE_CACHE_KEY = "cliprelay-state-cache";
 const API_BASE = window.location.protocol === "file:" ? "http://127.0.0.1:4173" : "";
 
@@ -920,7 +918,7 @@ function renderInbox() {
     state.selectedInboxId = items[0].id;
   }
   document.querySelector("#inboxTotal").textContent = String(state.inbox.length);
-  document.querySelector("#inboxNeedsReply").textContent = String(state.inbox.filter((item) => item.status === "needs_reply").length);
+  document.querySelector("#inboxNeedsReply").textContent = String(state.inbox.filter((item) => !item.reviewState || item.reviewState === "open").length);
   document.querySelector("#inboxSources").textContent = String(new Set(state.inbox.map((item) => item.platform)).size);
   document.querySelector("#inboxRefreshed").textContent = state.inboxFetchedAt ? formatDate(state.inboxFetchedAt) : "Not yet";
 
@@ -938,11 +936,11 @@ function renderInbox() {
     article.innerHTML = `
       <div class="inbox-item-head">
         <span class="badge">${escapeHtml(platformBadgeText(item.platform))}</span>
-        <span class="asset-status" data-status="${item.status === "replied" ? "ready" : item.canReply ? "review" : "draft"}">${escapeHtml(inboxStatusLabel(item))}</span>
+        <span class="signal-badge" data-signal="${escapeHtml(item.signal?.tone || "neutral")}">${escapeHtml(item.signal?.label || "Neutral")}</span>
       </div>
       <strong>${escapeHtml(item.authorDisplay || item.authorHandle || "Unknown author")}</strong>
       <p>${escapeHtml(compactText(item.text || "", 180))}</p>
-      <small>${escapeHtml(item.channelName || platformLabel(item.platform))} · ${escapeHtml(formatDate(item.createdAt))}</small>
+      <small>${escapeHtml(item.channelName || platformLabel(item.platform))} · ${escapeHtml(formatDate(item.createdAt))} · ${escapeHtml(reviewStateLabel(item.reviewState))}</small>
     `;
     article.addEventListener("click", () => {
       state.selectedInboxId = item.id;
@@ -962,48 +960,103 @@ function filteredInboxItems() {
     const haystack = [item.authorDisplay, item.authorHandle, item.channelName, item.postTitle, item.text].join(" ").toLowerCase();
     const statusMatch =
       status === "all"
-      || (status === "needs_reply" && item.status === "needs_reply")
+      || (status === "open" && (!item.reviewState || item.reviewState === "open"))
       || (status === "replied" && item.status === "replied")
-      || (status === "read_only" && !item.canReply);
+      || (status === "dismissed" && item.reviewState === "dismissed");
     return (!search || haystack.includes(search)) && (platform === "all" || item.platform === platform) && statusMatch;
   });
 }
 
 function renderInboxDetail() {
-  if (!inboxDetail || !inboxEmptyState) return;
+  if (!inboxDetail) return;
   const item = (state.inbox || []).find((entry) => entry.id === state.selectedInboxId);
   if (!item) {
-    inboxDetail.hidden = true;
-    inboxEmptyState.hidden = false;
+    inboxDetail.hidden = false;
+    inboxDetail.innerHTML = `
+      <div class="inbox-empty-detail">
+        <strong>Select a comment to inspect it</strong>
+        <p>Once selected, we will show the original comment, signal summary, and whether it makes sense to reply.</p>
+      </div>
+    `;
     return;
   }
 
-  inboxEmptyState.hidden = true;
   inboxDetail.hidden = false;
-  document.querySelector("#detailPlatformBadge").textContent = platformBadgeText(item.platform);
-  document.querySelector("#detailAuthor").textContent = item.authorDisplay || item.authorHandle || "Unknown author";
-  document.querySelector("#detailMeta").textContent = `${item.authorHandle ? `@${item.authorHandle}` : platformLabel(item.platform)} · ${formatDate(item.createdAt)}`;
-  document.querySelector("#detailCommentText").textContent = item.text || "";
-  document.querySelector("#detailPostTitle").textContent = item.postTitle || item.channelName || "Untitled post";
-  document.querySelector("#detailChannel").textContent = item.channelName || platformLabel(item.platform);
-  document.querySelector("#detailStatus").textContent = inboxStatusLabel(item);
-  document.querySelector("#detailAction").textContent = item.canReply ? "Reply in ClipRelay" : "Open on platform";
-  const link = document.querySelector("#detailOpenLink");
+  inboxDetail.innerHTML = `
+    <div class="inbox-detail-head">
+      <div>
+        <span class="badge" id="detailPlatformBadge">${escapeHtml(platformBadgeText(item.platform))}</span>
+        <h3 id="detailAuthor">${escapeHtml(item.authorDisplay || item.authorHandle || "Unknown author")}</h3>
+        <p id="detailMeta">${escapeHtml(`${item.authorHandle ? `@${item.authorHandle}` : platformLabel(item.platform)} · ${formatDate(item.createdAt)}`)}</p>
+      </div>
+      <a class="tiny-button" id="detailOpenLink" href="${escapeHtml(item.url || "#")}" target="_blank" rel="noreferrer">Open on platform</a>
+    </div>
+
+    <div class="inbox-comment-card">
+      <strong>Incoming comment</strong>
+      <p id="detailCommentText">${escapeHtml(item.text || "")}</p>
+    </div>
+
+    <div class="inbox-signal-card">
+      <div class="inbox-signal-head">
+        <strong>Signal summary</strong>
+        <span class="signal-badge" id="detailSignalBadge" data-signal="${escapeHtml(item.signal?.tone || "neutral")}">${escapeHtml(item.signal?.label || "Neutral")}</span>
+      </div>
+      <p id="detailSignalSummary">${escapeHtml(item.signal?.summary || "No summary yet.")}</p>
+    </div>
+
+    <div class="inbox-context-grid">
+      <div>
+        <span>Post</span>
+        <strong id="detailPostTitle">${escapeHtml(item.postTitle || item.channelName || "Untitled post")}</strong>
+      </div>
+      <div>
+        <span>Channel</span>
+        <strong id="detailChannel">${escapeHtml(item.channelName || platformLabel(item.platform))}</strong>
+      </div>
+      <div>
+        <span>Review state</span>
+        <strong id="detailStatus">${escapeHtml(reviewStateLabel(item.reviewState))}</strong>
+      </div>
+      <div>
+        <span>Action</span>
+        <strong id="detailAction">${escapeHtml(item.canReply ? "Reply in ClipRelay" : "Open on platform")}</strong>
+      </div>
+    </div>
+
+    <label class="field-group inbox-reply-field">
+      <span>Reply draft</span>
+      <textarea id="replyDraft" rows="5" placeholder="Write a reply or use AI to draft one in the same tone.">${escapeHtml(item.replyDraft || "")}</textarea>
+    </label>
+    <div class="toolbar-row inbox-reply-actions">
+      <button class="ghost-button" type="button" id="markNoReply">No reply needed</button>
+      <button class="ghost-button" type="button" id="generateReply">Draft reply with AI</button>
+      <button class="primary-button" type="button" id="sendReply">Send reply</button>
+    </div>
+    <p class="ai-helper" id="replyHelper">${escapeHtml(item.canReply
+      ? "Reply will be sent through the connected platform account."
+      : "This source is read-only in ClipRelay right now. Use the platform link to respond.")}</p>
+  `;
+
+  const link = inboxDetail.querySelector("#detailOpenLink");
   link.href = item.url || "#";
   link.toggleAttribute("aria-disabled", !item.url);
   link.style.pointerEvents = item.url ? "" : "none";
   link.style.opacity = item.url ? "" : "0.5";
-  replyDraft.value = item.replyDraft || "";
-  document.querySelector("#sendReply").disabled = !item.canReply;
-  document.querySelector("#replyHelper").textContent = item.canReply
-    ? "Reply will be sent through the connected platform account."
-    : "This source is read-only in ClipRelay right now. Use the platform link to respond.";
+  const localReplyDraft = inboxDetail.querySelector("#replyDraft");
+  localReplyDraft.addEventListener("input", () => {
+    item.replyDraft = localReplyDraft.value;
+  });
+  inboxDetail.querySelector("#generateReply").addEventListener("click", draftReplyForSelectedItem);
+  inboxDetail.querySelector("#sendReply").addEventListener("click", sendInboxReply);
+  inboxDetail.querySelector("#markNoReply").addEventListener("click", () => markInboxDecision("dismissed"));
+  inboxDetail.querySelector("#sendReply").disabled = !item.canReply;
 }
 
-function inboxStatusLabel(item) {
-  if (!item.canReply) return "Read only";
-  if (item.status === "replied") return "Replied";
-  return "Needs reply";
+function reviewStateLabel(stateValue) {
+  if (stateValue === "dismissed") return "No reply needed";
+  if (stateValue === "replied") return "Replied";
+  return "Open";
 }
 
 function platformBadgeText(platform) {
@@ -1021,22 +1074,24 @@ async function draftReplyForSelectedItem() {
   const item = (state.inbox || []).find((entry) => entry.id === state.selectedInboxId);
   if (!item) return;
   const prompt = `Reply to this ${platformLabel(item.platform)} comment in a helpful, brand-safe, conversational tone. Comment: ${item.text}`;
-  document.querySelector("#generateReply").disabled = true;
-  document.querySelector("#replyHelper").textContent = "Drafting a quick reply in the same tone...";
+  inboxDetail.querySelector("#generateReply").disabled = true;
+  inboxDetail.querySelector("#replyHelper").textContent = "Drafting a quick reply in the same tone...";
   try {
     const data = await apiRequest("/api/ai/optimize", {
       method: "POST",
       body: JSON.stringify({ base: prompt, platform: { id: item.platform, name: platformLabel(item.platform) } }),
     });
-    replyDraft.value = compactText(data.result?.caption || data.result?.title || "", 500);
-    item.replyDraft = replyDraft.value;
-    document.querySelector("#replyHelper").textContent = "Reply draft is ready. Edit it before sending if you want.";
+    const draftText = compactText(data.result?.caption || data.result?.title || "", 500);
+    inboxDetail.querySelector("#replyDraft").value = draftText;
+    item.replyDraft = draftText;
+    inboxDetail.querySelector("#replyHelper").textContent = "Reply draft is ready. Edit it before sending if you want.";
   } catch (error) {
-    replyDraft.value = localReplyFallback(item);
-    item.replyDraft = replyDraft.value;
-    document.querySelector("#replyHelper").textContent = `AI reply drafting fell back to a local template: ${error.message}`;
+    const draftText = localReplyFallback(item);
+    inboxDetail.querySelector("#replyDraft").value = draftText;
+    item.replyDraft = draftText;
+    inboxDetail.querySelector("#replyHelper").textContent = `AI reply drafting fell back to a local template: ${error.message}`;
   } finally {
-    document.querySelector("#generateReply").disabled = false;
+    inboxDetail.querySelector("#generateReply").disabled = false;
   }
 }
 
@@ -1048,24 +1103,43 @@ function localReplyFallback(item) {
 async function sendInboxReply() {
   const item = (state.inbox || []).find((entry) => entry.id === state.selectedInboxId);
   if (!item || !item.canReply) return;
-  const message = replyDraft.value.trim();
+  const message = inboxDetail.querySelector("#replyDraft").value.trim();
   if (!message) {
-    document.querySelector("#replyHelper").textContent = "Write a reply first, or generate one with AI.";
+    inboxDetail.querySelector("#replyHelper").textContent = "Write a reply first, or generate one with AI.";
     return;
   }
-  document.querySelector("#sendReply").disabled = true;
-  document.querySelector("#replyHelper").textContent = "Sending the reply...";
+  inboxDetail.querySelector("#sendReply").disabled = true;
+  inboxDetail.querySelector("#replyHelper").textContent = "Sending the reply...";
   try {
     await apiRequest("/api/inbox/reply", {
       method: "POST",
       body: JSON.stringify({ itemId: item.id, message }),
     });
     await loadInbox();
-    document.querySelector("#replyHelper").textContent = "Reply sent. The item stays here so you can verify the thread if needed.";
+    const refreshed = (state.inbox || []).find((entry) => entry.id === item.id);
+    if (refreshed) refreshed.reviewState = "replied";
   } catch (error) {
-    document.querySelector("#replyHelper").textContent = `Reply failed: ${error.message}`;
+    inboxDetail.querySelector("#replyHelper").textContent = `Reply failed: ${error.message}`;
   } finally {
-    document.querySelector("#sendReply").disabled = !item.canReply;
+    if (inboxDetail.querySelector("#sendReply")) {
+      inboxDetail.querySelector("#sendReply").disabled = !item.canReply;
+    }
+  }
+}
+
+async function markInboxDecision(decision) {
+  const item = (state.inbox || []).find((entry) => entry.id === state.selectedInboxId);
+  if (!item) return;
+  try {
+    await apiRequest("/api/inbox/review", {
+      method: "POST",
+      body: JSON.stringify({ itemId: item.id, decision }),
+    });
+    await loadInbox();
+  } catch (error) {
+    if (inboxDetail.querySelector("#replyHelper")) {
+      inboxDetail.querySelector("#replyHelper").textContent = `Could not update the review state: ${error.message}`;
+    }
   }
 }
 
@@ -1427,12 +1501,6 @@ document.querySelector("#refreshInbox").addEventListener("click", loadInbox);
 document.querySelector("#inboxSearch").addEventListener("input", renderInbox);
 document.querySelector("#inboxPlatform").addEventListener("input", renderInbox);
 document.querySelector("#inboxStatus").addEventListener("input", renderInbox);
-document.querySelector("#generateReply").addEventListener("click", draftReplyForSelectedItem);
-document.querySelector("#sendReply").addEventListener("click", sendInboxReply);
-replyDraft?.addEventListener("input", () => {
-  const item = (state.inbox || []).find((entry) => entry.id === state.selectedInboxId);
-  if (item) item.replyDraft = replyDraft.value;
-});
 
 renderPlatforms();
 renderAssets();

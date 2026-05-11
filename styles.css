@@ -31,6 +31,10 @@ body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 button,
 input,
 textarea,
@@ -1012,7 +1016,7 @@ textarea {
 
 .filter-bar {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) 180px 160px;
+  grid-template-columns: minmax(220px, 1fr) minmax(170px, 220px) minmax(170px, 220px);
   gap: 12px;
   padding: 16px;
 }
@@ -1426,9 +1430,38 @@ textarea {
 
 .inbox-item-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+}
+
+.signal-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  background: #eef1ef;
+  color: #55605a;
+}
+
+.signal-badge[data-signal="positive"] {
+  background: #e7f2ed;
+  color: var(--green-dark);
+}
+
+.signal-badge[data-signal="question"] {
+  background: #edf2f8;
+  color: #315278;
+}
+
+.signal-badge[data-signal="issue"] {
+  background: #fff3db;
+  color: #8a650b;
 }
 
 .inbox-item p,
@@ -1474,6 +1507,22 @@ textarea {
   padding: 14px;
 }
 
+.inbox-signal-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbfcfb;
+  padding: 14px;
+}
+
+.inbox-signal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .inbox-context-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1501,6 +1550,7 @@ textarea {
 
 .inbox-reply-actions {
   justify-content: flex-start;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 1040px) {
@@ -1537,7 +1587,8 @@ textarea {
   .asset-grid,
   .channel-grid,
   .overview-metrics,
-  .publish-checklist {
+  .publish-checklist,
+  .inbox-context-grid {
     grid-template-columns: repeat(2, minmax(220px, 1fr));
   }
 
@@ -1547,6 +1598,10 @@ textarea {
 
   .calendar-grid {
     grid-template-columns: repeat(7, 170px);
+  }
+
+  .filter-bar {
+    grid-template-columns: 1fr;
   }
 }
 
