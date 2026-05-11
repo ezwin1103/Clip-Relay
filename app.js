@@ -76,6 +76,7 @@ const draftList = document.querySelector("#draftList");
 const taskList = document.querySelector("#taskList");
 const toastStack = document.querySelector("#toastStack");
 const STATE_CACHE_KEY = "cliprelay-state-cache";
+const API_BASE = window.location.protocol === "file:" ? "http://127.0.0.1:4173" : "";
 
 function formatBytes(bytes) {
   if (!bytes) return "-";
@@ -92,7 +93,7 @@ function formatDuration(seconds) {
 }
 
 async function apiRequest(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await fetch(`${API_BASE}${path}`, {
     headers: options.body instanceof FormData ? undefined : { "content-type": "application/json" },
     ...options,
   });
@@ -517,8 +518,8 @@ function previewInitials(name) {
 
 function previewSublineText(platform, channel) {
   if (platform.id === "instagram") return "Reel";
-  if (platform.id === "tiktok") return channel?.username ? `@${channel.username}` : "TikTok preview";
-  if (platform.id === "twitter") return channel?.username ? `@${channel.username}` : "Post preview";
+  if (platform.id === "tiktok") return channel?.username ? `@${channel.username}` : "For You";
+  if (platform.id === "twitter") return channel?.username ? `@${channel.username}` : "Post";
   return "Shorts";
 }
 
@@ -533,8 +534,8 @@ function previewCaptionText(platform, caption) {
   const clean = String(caption || "").replace(/\s+/g, " ").trim();
   if (!clean) return { text: "", truncated: false };
   const limitMap = {
-    instagram: 118,
-    tiktok: 92,
+    instagram: 108,
+    tiktok: 88,
     twitter: 180,
     youtube: 140,
   };
@@ -1238,10 +1239,10 @@ function renderChannels() {
         await disconnectChannel(platform.id, platform.name);
         return;
       }
-      if (platform.id === "youtube") window.location.href = "/auth/youtube";
-      if (platform.id === "instagram") window.location.href = "/auth/instagram";
-      if (platform.id === "tiktok") window.location.href = "/auth/tiktok";
-      if (platform.id === "twitter") window.location.href = "/auth/twitter";
+      if (platform.id === "youtube") window.location.href = `${API_BASE}/auth/youtube`;
+      if (platform.id === "instagram") window.location.href = `${API_BASE}/auth/instagram`;
+      if (platform.id === "tiktok") window.location.href = `${API_BASE}/auth/tiktok`;
+      if (platform.id === "twitter") window.location.href = `${API_BASE}/auth/twitter`;
     });
     channelGrid.appendChild(node);
   });
@@ -1280,10 +1281,10 @@ function channelActionText(platformId) {
 }
 
 function connectPlatform(platformId) {
-  if (platformId === "youtube") window.location.href = "/auth/youtube";
-  if (platformId === "instagram") window.location.href = "/auth/instagram";
-  if (platformId === "tiktok") window.location.href = "/auth/tiktok";
-  if (platformId === "twitter") window.location.href = "/auth/twitter";
+  if (platformId === "youtube") window.location.href = `${API_BASE}/auth/youtube`;
+  if (platformId === "instagram") window.location.href = `${API_BASE}/auth/instagram`;
+  if (platformId === "tiktok") window.location.href = `${API_BASE}/auth/tiktok`;
+  if (platformId === "twitter") window.location.href = `${API_BASE}/auth/twitter`;
 }
 
 function suggestNextStep(message = "") {

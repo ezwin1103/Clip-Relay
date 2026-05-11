@@ -863,10 +863,14 @@ textarea {
 }
 
 .preview-shell[data-platform="instagram"] {
-  background: linear-gradient(180deg, #ffffff, #fcf8fb);
+  width: min(372px, 100%);
+  border-color: #1f2328;
+  background: #0d1014;
+  color: #fff;
 }
 
 .preview-shell[data-platform="tiktok"] {
+  width: min(372px, 100%);
   background: linear-gradient(180deg, #141414, #1d1d1d);
   border-color: #272727;
 }
@@ -890,6 +894,14 @@ textarea {
   align-items: center;
   gap: 10px;
   padding: 12px 12px 10px;
+}
+
+.preview-menu {
+  margin-left: auto;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
 }
 
 .preview-avatar {
@@ -937,7 +949,7 @@ textarea {
 .preview-shell[data-platform="instagram"] .preview-media,
 .preview-shell[data-platform="tiktok"] .preview-media {
   aspect-ratio: 9 / 16;
-  width: min(320px, calc(100% - 24px));
+  width: calc(100% - 24px);
 }
 
 .preview-shell[data-platform="youtube"] .preview-media {
@@ -1078,6 +1090,26 @@ textarea {
   display: none;
 }
 
+.preview-shell[data-platform="instagram"] .preview-header {
+  color: #fff;
+}
+
+.preview-shell[data-platform="instagram"] .preview-subline,
+.preview-shell[data-platform="instagram"] .preview-handle,
+.preview-shell[data-platform="instagram"] .preview-action,
+.preview-shell[data-platform="instagram"] .preview-copy-row,
+.preview-shell[data-platform="instagram"] .preview-more {
+  color: #fff;
+}
+
+.preview-shell[data-platform="instagram"] .preview-subline {
+  opacity: 0.72;
+}
+
+.preview-shell[data-platform="instagram"] .preview-avatar {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #f49b3f;
+}
+
 .preview-shell[data-platform="instagram"] .preview-copy,
 .preview-shell[data-platform="tiktok"] .preview-copy {
   display: inline;
@@ -1086,6 +1118,23 @@ textarea {
 .preview-shell[data-platform="instagram"] .preview-body,
 .preview-shell[data-platform="tiktok"] .preview-body {
   padding-top: 10px;
+}
+
+.preview-shell[data-platform="instagram"] .preview-body {
+  background: #0d1014;
+  padding: 12px 12px 14px;
+}
+
+.preview-shell[data-platform="instagram"] .preview-media {
+  margin: 0;
+  width: 100%;
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
+}
+
+.preview-shell[data-platform="instagram"] .preview-platform-chip {
+  display: none;
 }
 
 .preview-shell[data-platform="instagram"] .preview-media-fallback,
