@@ -59,6 +59,8 @@ createServer(async (req, res) => {
     if (url.pathname === "/api/uploads" && req.method === "POST") return uploadVideo(req, res);
     if (url.pathname.startsWith("/api/assets/") && req.method === "DELETE") return deleteAsset(url, res);
     if (url.pathname === "/api/ai/optimize" && req.method === "POST") return optimizeText(req, res);
+    if (url.pathname === "/api/inbox" && req.method === "GET") return getInbox(res);
+    if (url.pathname === "/api/inbox/reply" && req.method === "POST") return replyInboxItem(req, res);
     if (url.pathname === "/api/tasks" && req.method === "POST") return saveTask(req, res);
     if (url.pathname.startsWith("/api/tasks/") && req.method === "PATCH") return updateTask(url, req, res);
     if (url.pathname.startsWith("/api/tasks/") && req.method === "DELETE") return deleteTask(url, res);
@@ -118,6 +120,7 @@ function defaultDb() {
     drafts: [],
     tasks: [],
     channels: [],
+    inboxReplies: [],
     oauthStates: {},
     updatedAt: new Date().toISOString(),
   };
@@ -1108,6 +1111,229 @@ async function deleteChannel(url, res) {
   if (db.oauthPkce && id in db.oauthPkce) db.oauthPkce[id] = undefined;
   await writeDb(db);
   sendJson(res, { ok: db.channels.length < before });
+}
+
+async function getInbox(res) {
+  const db = await readDb();
+  const items = await collectInboxItems(db);
+  sendJson(res, { ok: true, items, fetchedAt: new Date().toISOString() });
+}
+
+async function replyInboxItem(req, res) {
+  const payload = await readJson(req);
+  const db = await readDb();
+  const items = await collectInboxItems(db);
+  const item = items.find((entry) => entry.id === payload.itemId);
+  if (!item) return sendJson(res, { error: "Inbox item not found" }, 404);
+  if (!item.canReply) return sendJson(res, { error: "This item is read-only in ClipRelay right now" }, 400);
+  const message = String(payload.message || "").trim();
+  if (!message) return sendJson(res, { error: "Reply message is required" }, 400);
+
+  if (item.platform === "instagram") await sendInstagramReply(db, item, message);
+  else if (item.platform === "youtube") await sendYouTubeReply(db, item, message);
+  else if (item.platform === "twitter") await sendTwitterReply(db, item, message);
+  else return sendJson(res, { error: "Unsupported inbox platform" }, 400);
+
+  db.inboxReplies = db.inboxReplies || [];
+  const replyRecord = {
+    itemId: item.id,
+    platform: item.platform,
+    message,
+    repliedAt: new Date().toISOString(),
+  };
+  const index = db.inboxReplies.findIndex((entry) => entry.itemId === item.id);
+  if (index >= 0) db.inboxReplies[index] = replyRecord;
+  else db.inboxReplies.unshift(replyRecord);
+  await writeDb(db);
+  sendJson(res, { ok: true, reply: replyRecord });
+}
+
+async function collectInboxItems(db) {
+  const channels = db.channels || [];
+  const replies = new Map((db.inboxReplies || []).map((entry) => [entry.itemId, entry]));
+  const items = [];
+
+  const youtube = channels.find((entry) => entry.id === "youtube" && entry.connected);
+  if (youtube?.accessToken) {
+    try {
+      const fresh = await ensureYouTubeAccessToken(db, youtube);
+      const youtubeItems = await fetchYouTubeInbox(fresh);
+      youtubeItems.forEach((item) => {
+        const replyRecord = replies.get(item.id);
+        items.push({ ...item, status: replyRecord ? "replied" : "needs_reply", replyRecord });
+      });
+    } catch (error) {
+      console.warn("Could not fetch YouTube inbox:", error.message || error);
+    }
+  }
+
+  const instagram = channels.find((entry) => entry.id === "instagram" && entry.connected);
+  if (instagram?.accessToken) {
+    try {
+      const resolved = await resolveInstagramPublishingChannel(db, instagram);
+      const instagramItems = await fetchInstagramInbox(resolved);
+      instagramItems.forEach((item) => {
+        const replyRecord = replies.get(item.id);
+        items.push({ ...item, status: replyRecord ? "replied" : "needs_reply", replyRecord });
+      });
+    } catch (error) {
+      console.warn("Could not fetch Instagram inbox:", error.message || error);
+    }
+  }
+
+  const twitter = channels.find((entry) => entry.id === "twitter" && entry.connected);
+  if (twitter?.accessToken) {
+    try {
+      const fresh = await ensureTwitterAccessToken(db, twitter);
+      const twitterItems = await fetchTwitterInbox(fresh);
+      twitterItems.forEach((item) => {
+        const replyRecord = replies.get(item.id);
+        items.push({ ...item, status: replyRecord ? "replied" : "needs_reply", replyRecord });
+      });
+    } catch (error) {
+      console.warn("Could not fetch X inbox:", error.message || error);
+    }
+  }
+
+  return items.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+}
+
+async function fetchYouTubeInbox(channel) {
+  const data = await requestJson(
+    `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet,replies&allThreadsRelatedToChannelId=${encodeURIComponent(channel.externalId)}&maxResults=15&order=time&textFormat=plainText`,
+    { headers: { authorization: `Bearer ${channel.accessToken}` } },
+  );
+  return (data.items || []).map((thread) => {
+    const snippet = thread.snippet || {};
+    const topLevel = snippet.topLevelComment?.snippet || {};
+    const commentId = snippet.topLevelComment?.id || thread.id;
+    return {
+      id: `youtube:${commentId}`,
+      platform: "youtube",
+      canReply: true,
+      platformItemId: commentId,
+      parentId: commentId,
+      authorDisplay: topLevel.authorDisplayName || "YouTube viewer",
+      authorHandle: topLevel.authorChannelUrl ? topLevel.authorChannelUrl.split("/").filter(Boolean).at(-1) : "",
+      authorAvatar: topLevel.authorProfileImageUrl || "",
+      text: topLevel.textDisplay || topLevel.textOriginal || "",
+      createdAt: topLevel.publishedAt || thread.snippet?.videoId || new Date().toISOString(),
+      channelName: channel.displayName || "YouTube",
+      postTitle: snippet.videoId ? `Video ${snippet.videoId}` : "YouTube Short",
+      url: snippet.videoId ? `https://www.youtube.com/watch?v=${snippet.videoId}&lc=${commentId}` : "",
+      videoId: snippet.videoId || "",
+      replyCount: snippet.totalReplyCount || 0,
+    };
+  });
+}
+
+async function fetchInstagramInbox(channel) {
+  const token = channel.pageAccessToken || channel.accessToken;
+  const media = await requestJson(
+    `https://graph.facebook.com/v24.0/${encodeURIComponent(channel.externalId)}/media?fields=id,caption,media_type,permalink,timestamp&limit=8&access_token=${encodeURIComponent(token)}`,
+  );
+  const items = [];
+  for (const mediaItem of media.data || []) {
+    const comments = await requestJson(
+      `https://graph.facebook.com/v24.0/${encodeURIComponent(mediaItem.id)}/comments?fields=id,text,username,timestamp,like_count&limit=8&access_token=${encodeURIComponent(token)}`,
+    );
+    (comments.data || []).forEach((comment) => {
+      items.push({
+        id: `instagram:${comment.id}`,
+        platform: "instagram",
+        canReply: true,
+        platformItemId: comment.id,
+        parentId: comment.id,
+        mediaId: mediaItem.id,
+        authorDisplay: comment.username || "Instagram viewer",
+        authorHandle: comment.username || "",
+        authorAvatar: channel.thumbnail || "",
+        text: comment.text || "",
+        createdAt: comment.timestamp || mediaItem.timestamp || new Date().toISOString(),
+        channelName: channel.displayName || "Instagram",
+        postTitle: compactForPlatform(mediaItem.caption || "Instagram reel", 80),
+        url: mediaItem.permalink || "",
+        replyCount: 0,
+      });
+    });
+  }
+  return items;
+}
+
+async function fetchTwitterInbox(channel) {
+  const data = await requestJson(
+    `https://api.x.com/2/users/${encodeURIComponent(channel.externalId)}/mentions?expansions=author_id&tweet.fields=author_id,created_at,public_metrics&user.fields=name,username,profile_image_url&max_results=15`,
+    { headers: { authorization: `Bearer ${channel.accessToken}` } },
+  );
+  const users = new Map((data.includes?.users || []).map((user) => [user.id, user]));
+  return (data.data || []).map((tweet) => {
+    const author = users.get(tweet.author_id) || {};
+    return {
+      id: `twitter:${tweet.id}`,
+      platform: "twitter",
+      canReply: true,
+      platformItemId: tweet.id,
+      parentId: tweet.id,
+      authorDisplay: author.name || author.username || "X user",
+      authorHandle: author.username || "",
+      authorAvatar: author.profile_image_url || "",
+      text: tweet.text || "",
+      createdAt: tweet.created_at || new Date().toISOString(),
+      channelName: channel.displayName || "X",
+      postTitle: "Mention or reply",
+      url: author.username ? `https://x.com/${author.username}/status/${tweet.id}` : "",
+      replyCount: tweet.public_metrics?.reply_count || 0,
+    };
+  });
+}
+
+async function sendInstagramReply(db, item, message) {
+  const channel = db.channels?.find((entry) => entry.id === "instagram" && entry.connected);
+  if (!channel) throw new Error("Instagram is not connected");
+  const resolved = await resolveInstagramPublishingChannel(db, channel);
+  const token = resolved.pageAccessToken || resolved.accessToken;
+  const body = new URLSearchParams({ message, access_token: token });
+  await requestJson(`https://graph.facebook.com/v24.0/${encodeURIComponent(item.parentId)}/replies`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+}
+
+async function sendYouTubeReply(db, item, message) {
+  const channel = db.channels?.find((entry) => entry.id === "youtube" && entry.connected);
+  if (!channel) throw new Error("YouTube is not connected");
+  const fresh = await ensureYouTubeAccessToken(db, channel);
+  await requestJson("https://www.googleapis.com/youtube/v3/comments?part=snippet", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${fresh.accessToken}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      snippet: {
+        parentId: item.parentId,
+        textOriginal: message,
+      },
+    }),
+  });
+}
+
+async function sendTwitterReply(db, item, message) {
+  const channel = db.channels?.find((entry) => entry.id === "twitter" && entry.connected);
+  if (!channel) throw new Error("X is not connected");
+  const fresh = await ensureTwitterAccessToken(db, channel);
+  await requestJson("https://api.x.com/2/tweets", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${fresh.accessToken}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      text: compactForPlatform(message, 280),
+      reply: { in_reply_to_tweet_id: item.parentId },
+    }),
+  });
 }
 
 async function uploadTaskToYouTube(url, res) {

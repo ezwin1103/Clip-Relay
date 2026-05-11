@@ -29,6 +29,10 @@
             <span class="icon">◷</span>
             <span>Schedule</span>
           </button>
+          <button class="nav-item" type="button" data-view="inbox">
+            <span class="icon">☰</span>
+            <span>Inbox</span>
+          </button>
           <button class="nav-item" type="button" data-view="channels">
             <span class="icon">◇</span>
             <span>Channels</span>
@@ -312,6 +316,131 @@
               </div>
             </div>
             <div class="reminder-list" id="reminderList"></div>
+          </section>
+        </section>
+
+        <section class="view" id="view-inbox">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow">Voice of Customer</p>
+              <h1>Review incoming comments in one place</h1>
+              <p class="section-lead">Pull the latest audience feedback from connected channels, spot what needs a reply, and answer without bouncing between tabs.</p>
+            </div>
+            <div class="top-actions">
+              <button class="ghost-button" type="button" id="refreshInbox">Refresh inbox</button>
+            </div>
+          </header>
+
+          <section class="summary-strip" aria-label="Inbox overview">
+            <div>
+              <span>Total items</span>
+              <strong id="inboxTotal">0</strong>
+            </div>
+            <div>
+              <span>Needs reply</span>
+              <strong id="inboxNeedsReply">0</strong>
+            </div>
+            <div>
+              <span>Platforms online</span>
+              <strong id="inboxSources">0</strong>
+            </div>
+            <div>
+              <span>Last refresh</span>
+              <strong id="inboxRefreshed">Not yet</strong>
+            </div>
+          </section>
+
+          <section class="inbox-layout">
+            <div class="panel inbox-list-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Comment stream</h2>
+                  <p>We surface the newest comments first, with connected-platform items grouped in one queue.</p>
+                </div>
+              </div>
+              <section class="filter-bar inbox-filter-bar" aria-label="Inbox filters">
+                <label>
+                  <span>Search comments</span>
+                  <input id="inboxSearch" type="search" placeholder="Search by author, platform, or comment" />
+                </label>
+                <label>
+                  <span>Platform</span>
+                  <select id="inboxPlatform">
+                    <option value="all">All platforms</option>
+                    <option value="instagram">Instagram</option>
+                    <option value="youtube">YouTube</option>
+                    <option value="twitter">X / Twitter</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select id="inboxStatus">
+                    <option value="all">All items</option>
+                    <option value="needs_reply">Needs reply</option>
+                    <option value="replied">Replied</option>
+                    <option value="read_only">Read only</option>
+                  </select>
+                </label>
+              </section>
+              <div class="inbox-list" id="inboxList"></div>
+            </div>
+
+            <aside class="panel inbox-detail-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Reply workspace</h2>
+                  <p>Review the full comment, its source post, and the next best action before you reply.</p>
+                </div>
+              </div>
+              <div class="inbox-empty-detail" id="inboxEmptyState">
+                <strong>Select a comment to inspect it</strong>
+                <p>Once selected, we will show the original comment, current status, and whether we can reply directly from ClipRelay.</p>
+              </div>
+              <div class="inbox-detail" id="inboxDetail" hidden>
+                <div class="inbox-detail-head">
+                  <div>
+                    <span class="badge" id="detailPlatformBadge">Instagram</span>
+                    <h3 id="detailAuthor">Author</h3>
+                    <p id="detailMeta">Context</p>
+                  </div>
+                  <a class="tiny-button" id="detailOpenLink" href="#" target="_blank" rel="noreferrer">Open on platform</a>
+                </div>
+
+                <div class="inbox-comment-card">
+                  <strong>Incoming comment</strong>
+                  <p id="detailCommentText"></p>
+                </div>
+
+                <div class="inbox-context-grid">
+                  <div>
+                    <span>Post</span>
+                    <strong id="detailPostTitle">-</strong>
+                  </div>
+                  <div>
+                    <span>Channel</span>
+                    <strong id="detailChannel">-</strong>
+                  </div>
+                  <div>
+                    <span>Status</span>
+                    <strong id="detailStatus">-</strong>
+                  </div>
+                  <div>
+                    <span>Action</span>
+                    <strong id="detailAction">-</strong>
+                  </div>
+                </div>
+
+                <label class="field-group inbox-reply-field">
+                  <span>Reply draft</span>
+                  <textarea id="replyDraft" rows="5" placeholder="Write a reply or use AI to draft one in the same tone."></textarea>
+                </label>
+                <div class="toolbar-row inbox-reply-actions">
+                  <button class="ghost-button" type="button" id="generateReply">Draft reply with AI</button>
+                  <button class="primary-button" type="button" id="sendReply">Send reply</button>
+                </div>
+                <p class="ai-helper" id="replyHelper">Replies are sent only when the connected platform supports direct response from ClipRelay.</p>
+              </div>
+            </aside>
           </section>
         </section>
 

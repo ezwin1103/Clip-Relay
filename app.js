@@ -50,6 +50,9 @@ const state = {
   activeDraftId: null,
   draftDirty: false,
   db: { drafts: [], tasks: [], assets: [] },
+  inbox: [],
+  inboxFetchedAt: "",
+  selectedInboxId: null,
 };
 
 let assets = [];
@@ -73,6 +76,10 @@ const channelGrid = document.querySelector("#channelGrid");
 const draftList = document.querySelector("#draftList");
 const taskList = document.querySelector("#taskList");
 const toastStack = document.querySelector("#toastStack");
+const inboxList = document.querySelector("#inboxList");
+const inboxDetail = document.querySelector("#inboxDetail");
+const inboxEmptyState = document.querySelector("#inboxEmptyState");
+const replyDraft = document.querySelector("#replyDraft");
 const STATE_CACHE_KEY = "cliprelay-state-cache";
 const API_BASE = window.location.protocol === "file:" ? "http://127.0.0.1:4173" : "";
 
@@ -129,6 +136,7 @@ async function loadServerState() {
     renderSchedule();
     renderHistoryLists();
     renderChannels();
+    renderInbox();
   } catch (error) {
     console.warn("Could not load the local backend state. Falling back to prototype data.", error);
     try {
@@ -143,6 +151,7 @@ async function loadServerState() {
         renderSchedule();
         renderHistoryLists();
         renderChannels();
+        renderInbox();
       }
     } catch (cacheError) {
       console.warn("Could not restore cached local state.", cacheError);
@@ -309,6 +318,7 @@ function switchView(view) {
     section.classList.toggle("active", section.id === `view-${view}`);
   });
   if (view === "channels") loadServerState();
+  if (view === "inbox" && !state.inbox.length) loadInbox();
 }
 
 function renderPlatforms() {
@@ -888,6 +898,177 @@ function renderTaskList() {
   });
 }
 
+async function loadInbox() {
+  try {
+    const data = await apiRequest("/api/inbox");
+    state.inbox = data.items || [];
+    state.inboxFetchedAt = data.fetchedAt || new Date().toISOString();
+    if (state.selectedInboxId && !state.inbox.find((item) => item.id === state.selectedInboxId)) {
+      state.selectedInboxId = null;
+    }
+    renderInbox();
+    setAiHelper("Inbox refreshed. You can review new comments, draft a reply, or open the source post.");
+  } catch (error) {
+    setAiHelper(`Could not refresh the inbox: ${error.message}`);
+  }
+}
+
+function renderInbox() {
+  if (!inboxList) return;
+  const items = filteredInboxItems();
+  if (!state.selectedInboxId && items[0]) {
+    state.selectedInboxId = items[0].id;
+  }
+  document.querySelector("#inboxTotal").textContent = String(state.inbox.length);
+  document.querySelector("#inboxNeedsReply").textContent = String(state.inbox.filter((item) => item.status === "needs_reply").length);
+  document.querySelector("#inboxSources").textContent = String(new Set(state.inbox.map((item) => item.platform)).size);
+  document.querySelector("#inboxRefreshed").textContent = state.inboxFetchedAt ? formatDate(state.inboxFetchedAt) : "Not yet";
+
+  inboxList.innerHTML = "";
+  if (!items.length) {
+    inboxList.innerHTML = '<p class="queue-empty">No comments match this filter yet.</p>';
+    renderInboxDetail();
+    return;
+  }
+
+  items.forEach((item) => {
+    const article = document.createElement("article");
+    article.className = "inbox-item";
+    article.dataset.active = item.id === state.selectedInboxId ? "true" : "false";
+    article.innerHTML = `
+      <div class="inbox-item-head">
+        <span class="badge">${escapeHtml(platformBadgeText(item.platform))}</span>
+        <span class="asset-status" data-status="${item.status === "replied" ? "ready" : item.canReply ? "review" : "draft"}">${escapeHtml(inboxStatusLabel(item))}</span>
+      </div>
+      <strong>${escapeHtml(item.authorDisplay || item.authorHandle || "Unknown author")}</strong>
+      <p>${escapeHtml(compactText(item.text || "", 180))}</p>
+      <small>${escapeHtml(item.channelName || platformLabel(item.platform))} · ${escapeHtml(formatDate(item.createdAt))}</small>
+    `;
+    article.addEventListener("click", () => {
+      state.selectedInboxId = item.id;
+      renderInbox();
+    });
+    inboxList.appendChild(article);
+  });
+
+  renderInboxDetail();
+}
+
+function filteredInboxItems() {
+  const search = document.querySelector("#inboxSearch")?.value.trim().toLowerCase() || "";
+  const platform = document.querySelector("#inboxPlatform")?.value || "all";
+  const status = document.querySelector("#inboxStatus")?.value || "all";
+  return (state.inbox || []).filter((item) => {
+    const haystack = [item.authorDisplay, item.authorHandle, item.channelName, item.postTitle, item.text].join(" ").toLowerCase();
+    const statusMatch =
+      status === "all"
+      || (status === "needs_reply" && item.status === "needs_reply")
+      || (status === "replied" && item.status === "replied")
+      || (status === "read_only" && !item.canReply);
+    return (!search || haystack.includes(search)) && (platform === "all" || item.platform === platform) && statusMatch;
+  });
+}
+
+function renderInboxDetail() {
+  if (!inboxDetail || !inboxEmptyState) return;
+  const item = (state.inbox || []).find((entry) => entry.id === state.selectedInboxId);
+  if (!item) {
+    inboxDetail.hidden = true;
+    inboxEmptyState.hidden = false;
+    return;
+  }
+
+  inboxEmptyState.hidden = true;
+  inboxDetail.hidden = false;
+  document.querySelector("#detailPlatformBadge").textContent = platformBadgeText(item.platform);
+  document.querySelector("#detailAuthor").textContent = item.authorDisplay || item.authorHandle || "Unknown author";
+  document.querySelector("#detailMeta").textContent = `${item.authorHandle ? `@${item.authorHandle}` : platformLabel(item.platform)} · ${formatDate(item.createdAt)}`;
+  document.querySelector("#detailCommentText").textContent = item.text || "";
+  document.querySelector("#detailPostTitle").textContent = item.postTitle || item.channelName || "Untitled post";
+  document.querySelector("#detailChannel").textContent = item.channelName || platformLabel(item.platform);
+  document.querySelector("#detailStatus").textContent = inboxStatusLabel(item);
+  document.querySelector("#detailAction").textContent = item.canReply ? "Reply in ClipRelay" : "Open on platform";
+  const link = document.querySelector("#detailOpenLink");
+  link.href = item.url || "#";
+  link.toggleAttribute("aria-disabled", !item.url);
+  link.style.pointerEvents = item.url ? "" : "none";
+  link.style.opacity = item.url ? "" : "0.5";
+  replyDraft.value = item.replyDraft || "";
+  document.querySelector("#sendReply").disabled = !item.canReply;
+  document.querySelector("#replyHelper").textContent = item.canReply
+    ? "Reply will be sent through the connected platform account."
+    : "This source is read-only in ClipRelay right now. Use the platform link to respond.";
+}
+
+function inboxStatusLabel(item) {
+  if (!item.canReply) return "Read only";
+  if (item.status === "replied") return "Replied";
+  return "Needs reply";
+}
+
+function platformBadgeText(platform) {
+  if (platform === "instagram") return "IG";
+  if (platform === "youtube") return "YT";
+  if (platform === "twitter") return "X";
+  return platformLabel(platform);
+}
+
+function platformLabel(platform) {
+  return platforms.find((entry) => entry.id === platform)?.name || platform;
+}
+
+async function draftReplyForSelectedItem() {
+  const item = (state.inbox || []).find((entry) => entry.id === state.selectedInboxId);
+  if (!item) return;
+  const prompt = `Reply to this ${platformLabel(item.platform)} comment in a helpful, brand-safe, conversational tone. Comment: ${item.text}`;
+  document.querySelector("#generateReply").disabled = true;
+  document.querySelector("#replyHelper").textContent = "Drafting a quick reply in the same tone...";
+  try {
+    const data = await apiRequest("/api/ai/optimize", {
+      method: "POST",
+      body: JSON.stringify({ base: prompt, platform: { id: item.platform, name: platformLabel(item.platform) } }),
+    });
+    replyDraft.value = compactText(data.result?.caption || data.result?.title || "", 500);
+    item.replyDraft = replyDraft.value;
+    document.querySelector("#replyHelper").textContent = "Reply draft is ready. Edit it before sending if you want.";
+  } catch (error) {
+    replyDraft.value = localReplyFallback(item);
+    item.replyDraft = replyDraft.value;
+    document.querySelector("#replyHelper").textContent = `AI reply drafting fell back to a local template: ${error.message}`;
+  } finally {
+    document.querySelector("#generateReply").disabled = false;
+  }
+}
+
+function localReplyFallback(item) {
+  const opener = item.authorDisplay ? `${item.authorDisplay},` : "Thanks for the comment,";
+  return `${opener} appreciate you jumping in here. ${item.platform === "youtube" ? "We’ll keep the ideas coming." : "Glad this resonated with you."}`;
+}
+
+async function sendInboxReply() {
+  const item = (state.inbox || []).find((entry) => entry.id === state.selectedInboxId);
+  if (!item || !item.canReply) return;
+  const message = replyDraft.value.trim();
+  if (!message) {
+    document.querySelector("#replyHelper").textContent = "Write a reply first, or generate one with AI.";
+    return;
+  }
+  document.querySelector("#sendReply").disabled = true;
+  document.querySelector("#replyHelper").textContent = "Sending the reply...";
+  try {
+    await apiRequest("/api/inbox/reply", {
+      method: "POST",
+      body: JSON.stringify({ itemId: item.id, message }),
+    });
+    await loadInbox();
+    document.querySelector("#replyHelper").textContent = "Reply sent. The item stays here so you can verify the thread if needed.";
+  } catch (error) {
+    document.querySelector("#replyHelper").textContent = `Reply failed: ${error.message}`;
+  } finally {
+    document.querySelector("#sendReply").disabled = !item.canReply;
+  }
+}
+
 function taskDetailRowHtml(task, platform) {
   const result = task.publishResults?.[platform.id] || {};
   return `
@@ -1242,11 +1423,23 @@ document.querySelector("#refreshChannels").addEventListener("click", loadServerS
 document.querySelector("#connectAll").addEventListener("click", () => {
   document.querySelectorAll(".channel-card .tiny-button").forEach((button) => button.click());
 });
+document.querySelector("#refreshInbox").addEventListener("click", loadInbox);
+document.querySelector("#inboxSearch").addEventListener("input", renderInbox);
+document.querySelector("#inboxPlatform").addEventListener("input", renderInbox);
+document.querySelector("#inboxStatus").addEventListener("input", renderInbox);
+document.querySelector("#generateReply").addEventListener("click", draftReplyForSelectedItem);
+document.querySelector("#sendReply").addEventListener("click", sendInboxReply);
+replyDraft?.addEventListener("input", () => {
+  const item = (state.inbox || []).find((entry) => entry.id === state.selectedInboxId);
+  if (item) item.replyDraft = replyDraft.value;
+});
 
 renderPlatforms();
 renderAssets();
 renderSchedule();
 renderChannels();
+renderHistoryLists();
+renderInbox();
 resetQueue();
 updateSummary();
 loadServerState();

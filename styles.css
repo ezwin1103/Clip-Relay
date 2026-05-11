@@ -1386,6 +1386,123 @@ textarea {
   align-items: end;
 }
 
+.inbox-layout {
+  display: grid;
+  grid-template-columns: minmax(380px, 0.9fr) minmax(360px, 1.1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.inbox-list-panel,
+.inbox-detail-panel {
+  padding: 16px;
+}
+
+.inbox-filter-bar {
+  margin-bottom: 14px;
+}
+
+.inbox-list {
+  display: grid;
+  gap: 10px;
+}
+
+.inbox-item {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfb;
+  padding: 12px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.inbox-item:hover,
+.inbox-item[data-active="true"] {
+  border-color: rgba(31, 122, 92, 0.35);
+  box-shadow: 0 0 0 3px rgba(31, 122, 92, 0.08);
+}
+
+.inbox-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.inbox-item p,
+.inbox-item small,
+.inbox-empty-detail p,
+.inbox-detail-head p,
+.inbox-comment-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.inbox-empty-detail {
+  display: grid;
+  gap: 8px;
+  min-height: 240px;
+  place-content: center;
+  text-align: center;
+  border: 1px dashed #d3dcd5;
+  border-radius: 10px;
+  background: #fbfcfb;
+  padding: 20px;
+}
+
+.inbox-detail {
+  display: grid;
+  gap: 16px;
+}
+
+.inbox-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.inbox-comment-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbfcfb;
+  padding: 14px;
+}
+
+.inbox-context-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.inbox-context-grid div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+}
+
+.inbox-context-grid span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.inbox-reply-field {
+  gap: 8px;
+}
+
+.inbox-reply-actions {
+  justify-content: flex-start;
+}
+
 @media (max-width: 1040px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -1412,7 +1529,8 @@ textarea {
   }
 
   .publish-grid,
-  .library-workbench {
+  .library-workbench,
+  .inbox-layout {
     grid-template-columns: 1fr;
   }
 
