@@ -521,7 +521,7 @@ function previewInitials(name) {
 function previewSublineText(platform, channel) {
   if (platform.id === "instagram") return "Reel";
   if (platform.id === "tiktok") return channel?.username ? `@${channel.username}` : "For You";
-  if (platform.id === "twitter") return channel?.username ? `@${channel.username}` : "Post";
+  if (platform.id === "twitter") return channel?.username ? `@${channel.username} · Apr 4` : "@account · Apr 4";
   return "Shorts";
 }
 
@@ -557,7 +557,7 @@ function previewMetaMarkup(platform) {
     return '<span class="preview-meta-item">12.4K views</span><span class="preview-meta-item">1.1K likes</span>';
   }
   if (platform.id === "twitter") {
-    return '<span class="preview-meta-item">1 reply</span><span class="preview-meta-item">7 reposts</span><span class="preview-meta-item">32 likes</span>';
+    return '<span class="preview-meta-item">◌ 5</span><span class="preview-meta-item">↻ 4</span><span class="preview-meta-item">♥ 64</span><span class="preview-meta-item">▥ 4.3K</span><span class="preview-meta-item">🔖</span><span class="preview-meta-item">⇪</span>';
   }
   return '<span class="preview-meta-item">2.1K views</span><span class="preview-meta-item">98% retention</span>';
 }
