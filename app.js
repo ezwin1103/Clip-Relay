@@ -49,8 +49,6 @@ const state = {
   uploadedAsset: null,
   activeDraftId: null,
   draftDirty: false,
-  previewCoverUrl: "",
-  previewCoverSource: "",
   db: { drafts: [], tasks: [], assets: [] },
 };
 
@@ -347,27 +345,10 @@ function renderPlatforms() {
     const count = node.querySelector(".char-count");
     const styleButton = node.querySelector(".ai-button");
     const connectButton = node.querySelector(".connect-platform");
-    const previewAvatar = node.querySelector(".preview-avatar");
-    const previewHandle = node.querySelector(".preview-handle");
-    const previewSubline = node.querySelector(".preview-subline");
-    const previewMedia = node.querySelector(".preview-media");
-    const previewVideo = node.querySelector(".preview-video");
-    const previewFallback = node.querySelector(".preview-media-fallback");
-    const previewChip = node.querySelector(".preview-platform-chip");
-    const previewTitle = node.querySelector(".preview-title");
-    const previewCopyHandle = node.querySelector(".preview-copy-handle");
-    const previewCopy = node.querySelector(".preview-copy");
-    const previewMore = node.querySelector(".preview-more");
-    const previewMeta = node.querySelector(".preview-meta");
-    const previewWrap = node.querySelector(".platform-preview");
-    const previewShell = node.querySelector(".preview-shell");
-    const previewAvatarUrl = connectedChannel?.thumbnail || connectedChannel?.avatarUrl || "";
-
     toggle.checked = canPublishNow;
     node.classList.toggle("disabled", !canPublishNow);
     node.classList.toggle("awaiting-asset", !state.hasVideo);
     node.classList.toggle("connected-platform", isConnected);
-    previewShell.dataset.platform = platform.id;
     accountLabel.textContent = isConnected ? "Connected" : "Connection required";
     channelValue.textContent = connectedChannel?.displayName || "Not connected";
 
@@ -385,28 +366,12 @@ function renderPlatforms() {
     connectButton.hidden = isConnected;
     connectButton.disabled = isConnected;
     connectButton.addEventListener("click", () => connectPlatform(platform.id));
-    previewHandle.textContent = connectedChannel?.displayName || platform.name;
-    previewSubline.textContent = previewSublineText(platform, connectedChannel);
-    previewChip.textContent = previewChipText(platform);
-    previewAvatar.textContent = previewAvatarUrl ? "" : previewInitials(connectedChannel?.displayName || platform.name);
-    previewAvatar.style.backgroundImage = previewAvatarUrl ? `url("${previewAvatarUrl}")` : "";
-    previewWrap.hidden = !isConnected || !state.hasVideo;
-    const previewCover = currentPreviewCover();
-    previewMedia.classList.toggle("has-cover", Boolean(previewCover));
-    previewVideo.style.backgroundImage = previewCover ? `url("${previewCover}")` : "";
 
     const refreshCount = () => {
       const length = platformNeedsTitle(platform.id) ? title.value.length : caption.value.length;
       count.textContent = `${length} / ${platform.limit}`;
       count.classList.toggle("warning", length > platform.limit);
       styleButton.textContent = length > platform.limit ? `Shorten for ${platform.logo}` : `Rewrite for ${platform.logo}`;
-      previewTitle.textContent = platform.id === "youtube" ? title.value.trim() : "";
-      const previewText = previewCaptionText(platform, caption.value.trim());
-      previewCopyHandle.textContent = platform.id === "youtube" ? "" : `${connectedChannel?.displayName || platform.name} `;
-      previewCopy.textContent = previewText.text;
-      previewMore.textContent = previewText.truncated ? "more" : "";
-      previewMeta.innerHTML = previewMetaMarkup(platform);
-      previewTitle.hidden = platform.id !== "youtube" || !title.value.trim();
       updateSummary();
     };
 
@@ -428,138 +393,6 @@ function renderPlatforms() {
     refreshCount();
     platformList.appendChild(node);
   });
-}
-
-function currentPreviewSource() {
-  return videoPreview.currentSrc || videoPreview.src || state.uploadedAsset?.url || "";
-}
-
-function currentPreviewCover() {
-  return state.previewCoverUrl || state.uploadedAsset?.thumbnail || state.uploadedAsset?.posterUrl || "";
-}
-
-async function refreshPreviewCover(source) {
-  if (!source) {
-    state.previewCoverSource = "";
-    state.previewCoverUrl = "";
-    renderPlatforms();
-    return;
-  }
-
-  if (state.previewCoverSource === source && state.previewCoverUrl) {
-    renderPlatforms();
-    return;
-  }
-
-  state.previewCoverSource = source;
-  state.previewCoverUrl = "";
-  renderPlatforms();
-
-  try {
-    const cover = await captureVideoFrame(source);
-    if (state.previewCoverSource === source) {
-      state.previewCoverUrl = cover;
-      renderPlatforms();
-    }
-  } catch (error) {
-    console.warn("Could not create a preview cover from the current video source:", error.message || error);
-  }
-}
-
-function captureVideoFrame(source) {
-  return new Promise((resolve, reject) => {
-    const probe = document.createElement("video");
-    probe.muted = true;
-    probe.playsInline = true;
-    probe.preload = "auto";
-
-    const cleanup = () => {
-      probe.pause();
-      probe.removeAttribute("src");
-      probe.load();
-    };
-
-    const capture = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = probe.videoWidth || 720;
-      canvas.height = probe.videoHeight || 1280;
-      const context = canvas.getContext("2d");
-      if (!context) {
-        cleanup();
-        reject(new Error("Canvas is unavailable"));
-        return;
-      }
-      context.drawImage(probe, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.86);
-      cleanup();
-      resolve(dataUrl);
-    };
-
-    probe.addEventListener("error", () => {
-      cleanup();
-      reject(new Error("Frame capture failed"));
-    }, { once: true });
-
-    probe.addEventListener("loadeddata", () => {
-      if (Number.isFinite(probe.duration) && probe.duration > 0.24) {
-        probe.currentTime = 0.2;
-      } else {
-        capture();
-      }
-    }, { once: true });
-
-    probe.addEventListener("seeked", capture, { once: true });
-    probe.src = source;
-  });
-}
-
-function previewInitials(name) {
-  const words = String(name || "").trim().split(/\s+/).filter(Boolean);
-  return (words[0]?.[0] || "C").toUpperCase();
-}
-
-function previewSublineText(platform, channel) {
-  if (platform.id === "instagram") return "Reel";
-  if (platform.id === "tiktok") return channel?.username ? `@${channel.username}` : "For You";
-  if (platform.id === "twitter") return channel?.username ? `@${channel.username} · Apr 4` : "@account · Apr 4";
-  return "Shorts";
-}
-
-function previewChipText(platform) {
-  if (platform.id === "instagram") return "Reel cover";
-  if (platform.id === "tiktok") return "TikTok";
-  if (platform.id === "twitter") return "Media card";
-  return "Shorts";
-}
-
-function previewCaptionText(platform, caption) {
-  const clean = String(caption || "").replace(/\s+/g, " ").trim();
-  if (!clean) return { text: "", truncated: false };
-  const limitMap = {
-    instagram: 108,
-    tiktok: 88,
-    twitter: 180,
-    youtube: 140,
-  };
-  const limit = limitMap[platform.id] || 120;
-  if (clean.length <= limit) return { text: clean, truncated: false };
-  return {
-    text: `${clean.slice(0, limit).trimEnd()}...`,
-    truncated: true,
-  };
-}
-
-function previewMetaMarkup(platform) {
-  if (platform.id === "instagram") {
-    return '<span class="preview-meta-item">View insights</span>';
-  }
-  if (platform.id === "tiktok") {
-    return '<span class="preview-meta-item">12.4K views</span><span class="preview-meta-item">1.1K likes</span>';
-  }
-  if (platform.id === "twitter") {
-    return '<span class="preview-meta-item">◌ 5</span><span class="preview-meta-item">↻ 4</span><span class="preview-meta-item">♥ 64</span><span class="preview-meta-item">▥ 4.3K</span><span class="preview-meta-item">🔖</span><span class="preview-meta-item">⇪</span>';
-  }
-  return '<span class="preview-meta-item">2.1K views</span><span class="preview-meta-item">98% retention</span>';
 }
 
 function getCards() {
@@ -665,7 +498,6 @@ function handleFile(file) {
   if (firstAssetForSession) renderPlatforms();
   const url = URL.createObjectURL(file);
   videoPreview.src = url;
-  refreshPreviewCover(url);
   previewWrap.classList.remove("hidden");
   previewWrap.classList.remove("empty");
   emptyPreview.style.display = "none";
@@ -911,7 +743,6 @@ function useAsset(asset) {
   if (firstAssetForSession) renderPlatforms();
   if (asset.url) {
     videoPreview.src = asset.url;
-    refreshPreviewCover(asset.url);
     previewWrap.classList.remove("hidden");
     previewWrap.classList.remove("empty");
     emptyPreview.style.display = "none";
