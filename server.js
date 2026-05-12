@@ -74,7 +74,7 @@ createServer(async (req, res) => {
     sendJson(res, { error: error.message || "Server error" }, 500);
   }
 }).listen(port, host, () => {
-  console.log(`ClipRelay app running at http://${host === "0.0.0.0" ? "127.0.0.1" : host}:${port}/`);
+  console.log(`ClipReplay app running at http://${host === "0.0.0.0" ? "127.0.0.1" : host}:${port}/`);
 });
 
 process.on("unhandledRejection", (error) => {
@@ -261,7 +261,7 @@ async function startYouTubeAuth(res) {
         <p>Fill in <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code> inside <code>.env</code>.</p>
         <p>Use this Authorized redirect URI in Google Cloud Console:</p>
         <pre style="background:#f2f4f3;padding:12px;border-radius:8px">${youtubeRedirectUri}</pre>
-        <p><a href="/">Return to ClipRelay</a></p>
+        <p><a href="/">Return to ClipReplay</a></p>
       </main>`,
       400,
     );
@@ -300,7 +300,7 @@ async function finishYouTubeAuth(url, res) {
 
     const db = await readDb();
     if (!returnedState || (returnedState !== db.oauthStates?.youtube && !verifyOAuthState(returnedState, "youtube"))) {
-      return sendAuthError(res, "OAuth state validation failed.", "Return to ClipRelay and try connecting YouTube again.");
+      return sendAuthError(res, "OAuth state validation failed.", "Return to ClipReplay and try connecting YouTube again.");
     }
 
     const tokenData = await exchangeGoogleCode(code);
@@ -327,7 +327,7 @@ async function finishYouTubeAuth(url, res) {
       `<main style="font-family:system-ui;padding:32px;line-height:1.6;max-width:760px">
         <h1>YouTube connected</h1>
         <p>Connected channel: <strong>${escapeHtml(channel.displayName)}</strong></p>
-        <p><a href="/">Return to ClipRelay</a></p>
+        <p><a href="/">Return to ClipReplay</a></p>
       </main>`,
     );
   } catch (error) {
@@ -346,7 +346,7 @@ async function startInstagramAuth(res) {
         <p>The server also accepts <code>META_APP_ID</code> and <code>META_APP_SECRET</code> as a fallback for older setups.</p>
         <p>Use this Valid OAuth Redirect URI in your Meta app:</p>
         <pre style="background:#f2f4f3;padding:12px;border-radius:8px">${instagramRedirectUri}</pre>
-        <p><a href="/">Return to ClipRelay</a></p>
+        <p><a href="/">Return to ClipReplay</a></p>
       </main>`,
       400,
     );
@@ -398,7 +398,7 @@ async function finishInstagramAuth(url, res) {
 
     const db = await readDb();
     if (!returnedState || (returnedState !== db.oauthStates?.instagram && !verifyOAuthState(returnedState, "instagram"))) {
-      return sendAuthError(res, "OAuth state validation failed.", "Return to ClipRelay and try connecting Instagram again.");
+      return sendAuthError(res, "OAuth state validation failed.", "Return to ClipReplay and try connecting Instagram again.");
     }
 
     const authFlow = db.oauthFlows?.instagram || getInstagramAuthMode();
@@ -432,7 +432,7 @@ async function finishInstagramAuth(url, res) {
       `<main style="font-family:system-ui;padding:32px;line-height:1.6;max-width:760px">
         <h1>Instagram connected</h1>
         <p>Connected account: <strong>${escapeHtml(channel.displayName)}</strong></p>
-        <p><a href="/">Return to ClipRelay</a></p>
+        <p><a href="/">Return to ClipReplay</a></p>
       </main>`,
     );
   } catch (error) {
@@ -450,7 +450,7 @@ async function startTikTokAuth(res) {
         <p>Fill in <code>TIKTOK_CLIENT_KEY</code> and <code>TIKTOK_CLIENT_SECRET</code> inside <code>.env</code>.</p>
         <p>Use this Redirect URI in your TikTok app:</p>
         <pre style="background:#f2f4f3;padding:12px;border-radius:8px">${tiktokRedirectUri}</pre>
-        <p><a href="/">Return to ClipRelay</a></p>
+        <p><a href="/">Return to ClipReplay</a></p>
       </main>`,
       400,
     );
@@ -481,7 +481,7 @@ async function startTwitterAuth(res) {
         <p>Fill in <code>X_CLIENT_ID</code> and <code>X_CLIENT_SECRET</code> inside <code>.env</code>.</p>
         <p>Use this Callback URI in your X app:</p>
         <pre style="background:#f2f4f3;padding:12px;border-radius:8px">${twitterRedirectUri}</pre>
-        <p><a href="/">Return to ClipRelay</a></p>
+        <p><a href="/">Return to ClipReplay</a></p>
       </main>`,
       400,
     );
@@ -520,7 +520,7 @@ async function finishTwitterAuth(url, res) {
 
     const db = await readDb();
     if (!returnedState || (returnedState !== db.oauthStates?.twitter && !verifyOAuthState(returnedState, "twitter"))) {
-      return sendAuthError(res, "OAuth state validation failed.", "Return to ClipRelay and try connecting X again.");
+      return sendAuthError(res, "OAuth state validation failed.", "Return to ClipReplay and try connecting X again.");
     }
 
     const tokenData = await exchangeTwitterCode(code, db.oauthPkce?.twitter || "");
@@ -549,7 +549,7 @@ async function finishTwitterAuth(url, res) {
       `<main style="font-family:system-ui;padding:32px;line-height:1.6;max-width:760px">
         <h1>X connected</h1>
         <p>Connected account: <strong>${escapeHtml(channel.displayName)}</strong></p>
-        <p><a href="/">Return to ClipRelay</a></p>
+        <p><a href="/">Return to ClipReplay</a></p>
       </main>`,
     );
   } catch (error) {
@@ -570,7 +570,7 @@ async function finishTikTokAuth(url, res) {
 
     const db = await readDb();
     if (!returnedState || (returnedState !== db.oauthStates?.tiktok && !verifyOAuthState(returnedState, "tiktok"))) {
-      return sendAuthError(res, "OAuth state validation failed.", "Return to ClipRelay and try connecting TikTok again.");
+      return sendAuthError(res, "OAuth state validation failed.", "Return to ClipReplay and try connecting TikTok again.");
     }
 
     const tokenData = await exchangeTikTokCode(code);
@@ -597,7 +597,7 @@ async function finishTikTokAuth(url, res) {
       `<main style="font-family:system-ui;padding:32px;line-height:1.6;max-width:760px">
         <h1>TikTok connected</h1>
         <p>Connected account: <strong>${escapeHtml(channel.displayName)}</strong></p>
-        <p><a href="/">Return to ClipRelay</a></p>
+        <p><a href="/">Return to ClipReplay</a></p>
       </main>`,
     );
   } catch (error) {
@@ -612,8 +612,8 @@ function sendAuthError(res, title, detail) {
     `<main style="font-family:system-ui;padding:32px;line-height:1.6;max-width:820px">
       <h1>${escapeHtml(title)}</h1>
       <p>${escapeHtml(detail)}</p>
-      <p>Return to ClipRelay and try connecting again.</p>
-      <p><a href="/">Return to ClipRelay</a></p>
+      <p>Return to ClipReplay and try connecting again.</p>
+      <p><a href="/">Return to ClipReplay</a></p>
     </main>`,
     400,
   );
@@ -1127,7 +1127,7 @@ async function replyInboxItem(req, res) {
   const items = await collectInboxItems(db);
   const item = items.find((entry) => entry.id === payload.itemId);
   if (!item) return sendJson(res, { error: "Inbox item not found" }, 404);
-  if (!item.canReply) return sendJson(res, { error: "This item is read-only in ClipRelay right now" }, 400);
+  if (!item.canReply) return sendJson(res, { error: "This item is read-only in ClipReplay right now" }, 400);
   const message = String(payload.message || "").trim();
   if (!message) return sendJson(res, { error: "Reply message is required" }, 400);
 
@@ -1454,7 +1454,7 @@ async function runYouTubeUpload(taskId) {
       accessToken: freshChannel.accessToken,
       assetPath,
       mimeType: task.asset.mimeType || "video/mp4",
-      title: youtubeCopy.title || task.title || "ClipRelay upload",
+      title: youtubeCopy.title || task.title || "ClipReplay upload",
       description: youtubeCopy.caption || task.masterCaption || "",
       onProgress: (progress) => updatePlatformTaskProgress(taskId, "youtube", progress),
     });
