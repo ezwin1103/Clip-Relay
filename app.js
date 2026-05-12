@@ -1020,7 +1020,7 @@ function renderInboxDetail() {
       </div>
       <div>
         <span>Action</span>
-        <strong id="detailAction">${escapeHtml(item.canReply ? "Reply in ClipReplay" : "Open on platform")}</strong>
+        <strong id="detailAction">${escapeHtml(item.canReply ? "Reply in ClipRelay" : "Open on platform")}</strong>
       </div>
     </div>
 
@@ -1035,7 +1035,7 @@ function renderInboxDetail() {
     </div>
     <p class="ai-helper" id="replyHelper">${escapeHtml(item.canReply
       ? "Reply will be sent through the connected platform account."
-      : "This source is read-only in ClipReplay right now. Use the platform link to respond.")}</p>
+      : "This source is read-only in ClipRelay right now. Use the platform link to respond.")}</p>
   `;
 
   const link = inboxDetail.querySelector("#detailOpenLink");
@@ -1391,7 +1391,7 @@ function connectPlatform(platformId) {
 function suggestNextStep(message = "") {
   const text = String(message).toLowerCase();
   if (text.includes("not connected")) return "Connect the channel from this card or the Channels page, then try again.";
-  if (text.includes("oauth")) return "Reconnect the affected channel so ClipReplay can refresh authorization.";
+  if (text.includes("oauth")) return "Reconnect the affected channel so ClipRelay can refresh authorization.";
   if (text.includes("upload")) return "Retry the upload or choose a different source asset from Library.";
   if (text.includes("public https video url")) return "Expose the video through a public HTTPS asset URL before publishing to Instagram.";
   return "Open the task details, review the error, then retry the affected platform.";
