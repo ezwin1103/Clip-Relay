@@ -593,27 +593,12 @@ async function publishAll() {
 
   try {
     const task = await savePublishTask(cards);
-    const publishPromises = [];
     rows.forEach(({ row, platform }) => {
       row.querySelector(".progress span").style.width = "100%";
       const status = row.querySelector(".queue-status");
       if (isPlatformConnected(platform.id)) {
         if (state.mode === "now") {
-          status.textContent = "Starting";
-          publishPromises.push(
-            publishTaskToPlatform(task.id, platform.id, { silent: true })
-              .then(() => {
-                status.textContent = "Running";
-              })
-              .catch((error) => {
-                status.textContent = "Failed";
-                row.querySelector(".progress span").style.width = "0%";
-                const detail = document.createElement("p");
-                detail.className = "queue-error";
-                detail.textContent = error.message;
-                row.appendChild(detail);
-              }),
-          );
+          status.textContent = "Queued";
         } else {
           status.textContent = "Scheduled";
         }
@@ -622,8 +607,23 @@ async function publishAll() {
       }
     });
     if (state.mode === "now") {
-      await Promise.allSettled(publishPromises);
-      setAiHelper("Publishing has started on every selected connected channel. You can track live progress here and in task history.");
+      for (const { row, platform } of rows) {
+        if (!isPlatformConnected(platform.id)) continue;
+        const status = row.querySelector(".queue-status");
+        status.textContent = "Starting";
+        try {
+          await publishTaskToPlatform(task.id, platform.id, { silent: true });
+          status.textContent = "Running";
+        } catch (error) {
+          status.textContent = "Failed";
+          row.querySelector(".progress span").style.width = "0%";
+          const detail = document.createElement("p");
+          detail.className = "queue-error";
+          detail.textContent = error.message;
+          row.appendChild(detail);
+        }
+      }
+      setAiHelper("Publishing is now started one channel at a time to keep uploads stable on smaller servers. You can track live progress here and in task history.");
     } else {
       setAiHelper("The task has been saved to the schedule. It will stay in task history until you publish it.");
     }

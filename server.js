@@ -25,6 +25,7 @@ const outboundProxy = env.OUTBOUND_PROXY_URL || env.GOOGLE_PROXY_URL || "";
 const oauthStateSecret =
   env.OAUTH_STATE_SECRET || env.GOOGLE_CLIENT_SECRET || env.META_APP_SECRET || env.TIKTOK_CLIENT_SECRET || "cliprelay-local-state";
 const execFileAsync = promisify(execFile);
+const publishTaskQueues = new Map();
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -1430,8 +1431,22 @@ async function publishTaskToPlatform(url, res) {
     [platform]: { status: "publishing", progress: 0, uploadedBytes: 0, totalBytes: task.asset.size || 0, startedAt: new Date().toISOString() },
   };
   await writeDb(db);
-  runPlatformUpload(platform, taskId).catch((error) => console.error(`Background ${platform} upload failed:`, error));
+  enqueuePlatformUpload(taskId, platform).catch((error) => console.error(`Background ${platform} upload failed:`, error));
   sendJson(res, { ok: true, accepted: true, task });
+}
+
+function enqueuePlatformUpload(taskId, platform) {
+  const previous = publishTaskQueues.get(taskId) || Promise.resolve();
+  const next = previous
+    .catch(() => {})
+    .then(() => runPlatformUpload(platform, taskId))
+    .finally(() => {
+      if (publishTaskQueues.get(taskId) === next) {
+        publishTaskQueues.delete(taskId);
+      }
+    });
+  publishTaskQueues.set(taskId, next);
+  return next;
 }
 
 async function runPlatformUpload(platform, taskId) {
