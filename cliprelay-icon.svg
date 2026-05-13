@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="ClipRelay icon">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1b8a69"/>
+      <stop offset="100%" stop-color="#0f563f"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="48" fill="url(#bg)"/>
+  <path d="M79 76h55c30 0 46 17 46 40 0 22-16 39-46 39h-22v25H79zm33 28v23h20c10 0 16-4 16-12s-6-11-16-11zm85-28h-31v104h31z" fill="#fff"/>
+</svg>
