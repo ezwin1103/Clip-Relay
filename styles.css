@@ -267,10 +267,12 @@ h1 {
 }
 
 .public-brand img {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 12px;
   box-shadow: 0 8px 18px rgba(22, 116, 90, 0.18);
+  object-fit: cover;
+  flex: 0 0 auto;
 }
 
 .public-brand strong,
@@ -320,32 +322,51 @@ h1 {
 .public-main {
   width: min(1180px, calc(100% - 40px));
   margin: 0 auto;
-  padding: 34px 0 56px;
+  padding: 44px 0 64px;
   display: grid;
-  gap: 26px;
+  gap: 34px;
 }
 
 .public-hero {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
-  gap: 24px;
+  gap: 28px;
   align-items: start;
+}
+
+.public-hero-copy {
+  display: grid;
+  gap: 18px;
 }
 
 .public-summary-card,
 .public-card {
   padding: 24px;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: var(--shadow-soft);
 }
 
-.public-summary-card ul {
-  margin: 16px 0 0;
-  padding-left: 18px;
-  color: var(--muted);
-  line-height: 1.7;
+.public-summary-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.summary-kicker {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.public-summary-stack strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 18px;
 }
 
 .public-section {
@@ -385,6 +406,22 @@ h1 {
   width: min(1180px, calc(100% - 40px));
   margin: 0 auto;
   padding: 10px 0 40px;
+}
+
+.public-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.public-pill-row span {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 650;
 }
 
 .legal-page {
@@ -1929,6 +1966,10 @@ textarea {
   .public-grid-3,
   .public-grid-4 {
     grid-template-columns: 1fr;
+  }
+
+  .public-summary-card {
+    order: -1;
   }
 }
 

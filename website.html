@@ -8,71 +8,72 @@
       name="description"
       content="ClipRelay is a web-based workflow for uploading one short-form video, tailoring captions for each platform, and publishing to connected creator accounts."
     />
-    <link rel="icon" type="image/svg+xml" href="/cliprelay-icon.svg" />
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="icon" type="image/svg+xml" href="./cliprelay-icon.svg" />
+    <link rel="stylesheet" href="./styles.css" />
   </head>
   <body class="public-site">
     <header class="public-header">
-      <a class="public-brand" href="/website.html">
-        <img src="/cliprelay-icon.svg" alt="ClipRelay icon" />
+      <a class="public-brand" href="./website.html">
+        <img src="./cliprelay-icon.svg" alt="ClipRelay icon" />
         <div>
           <strong>ClipRelay</strong>
           <span>Short-form publishing workflow</span>
         </div>
       </a>
-      <nav class="public-nav" aria-label="Website">
-        <a href="#overview">Overview</a>
-        <a href="#workflow">Workflow</a>
-        <a href="#platforms">Platforms</a>
-        <a href="/terms.html">Terms</a>
-        <a href="/privacy.html">Privacy</a>
-        <a href="/review-notes.html">Review notes</a>
-        <a class="public-cta" href="/">Open workspace</a>
-      </nav>
+      <a class="primary-button public-link-button" href="./">Open workspace</a>
     </header>
 
     <main class="public-main">
       <section class="public-hero" id="overview">
-        <div>
+        <div class="public-hero-copy">
           <p class="eyebrow">ClipRelay</p>
-          <h1>Upload once, tailor per platform, and publish with one workspace.</h1>
+          <h1>Upload once. Tailor each channel. Publish from one calm workspace.</h1>
           <p class="section-lead">
-            ClipRelay is a web-based creator operations tool for preparing short-form video releases, adapting channel-specific copy,
-            publishing to connected social accounts, and reviewing audience feedback in one place.
+            ClipRelay is a creator publishing workspace for short-form video teams. Prepare one release, adapt the copy per platform,
+            publish to connected accounts, and keep feedback organized without jumping between tools.
           </p>
-          <div class="public-actions">
-            <a class="primary-button public-link-button" href="/">Open the app workspace</a>
-            <a class="ghost-button public-link-button" href="/review-notes.html">View TikTok review notes</a>
+          <div class="public-pill-row" aria-label="Key product traits">
+            <span>Short-form video workflow</span>
+            <span>Connected publishing</span>
+            <span>Drafts and review inbox</span>
           </div>
         </div>
-        <aside class="public-summary-card">
-          <h2>What ClipRelay does</h2>
-          <ul>
-            <li>Upload one original short-form video and keep the source asset organized.</li>
-            <li>Write a master caption, then tailor or rewrite text for each destination platform.</li>
-            <li>Connect your own social accounts and explicitly publish authorized content.</li>
-            <li>Review publish history, draft content, and a shared audience feedback inbox.</li>
-          </ul>
+        <aside class="public-summary-card public-summary-stack">
+          <div>
+            <span class="summary-kicker">One release at a time</span>
+            <strong>Source asset</strong>
+            <p>Upload a video once and reuse it inside the publishing workflow.</p>
+          </div>
+          <div>
+            <span class="summary-kicker">Localized copy</span>
+            <strong>Per-platform editing</strong>
+            <p>Adapt captions for YouTube, Instagram, TikTok, and X from one master narrative.</p>
+          </div>
+          <div>
+            <span class="summary-kicker">Post-publish view</span>
+            <strong>Feedback inbox</strong>
+            <p>Review audience comments and reply from supported channels in one place.</p>
+          </div>
         </aside>
       </section>
 
       <section class="public-section" id="workflow">
         <div class="public-section-head">
-          <h2>How the workflow works</h2>
-          <p>ClipRelay is designed for a single release workflow: source asset, platform-native copy, connected destinations, then publish or schedule.</p>
+          <h2>Built for a simple release flow</h2>
+          <p>ClipRelay keeps the workflow narrow on purpose: asset in, platform copy out, then publish or schedule.</p>
         </div>
         <div class="public-grid public-grid-3">
           <article class="public-card">
             <h3>1. Prepare the asset</h3>
-            <p>Upload one source video, review metadata, and keep reusable uploads in the library without recreating each release from scratch.</p>
+            <p>Upload one source video, review metadata, and reopen reusable uploads later without rebuilding the whole release.</p>
           </article>
           <article class="public-card">
             <h3>2. Localize the copy</h3>
-            <p>Draft a master caption, generate per-platform copy, rewrite with AI assistance, and adjust each destination before publishing.</p>
+            <p>Start from one master caption, generate per-platform copy, then rewrite or trim each destination before publishing.</p>
           </article>
           <article class="public-card">
             <h3>3. Publish or schedule</h3>
-            <p>Send the release to connected channels, track publish status, and review incoming audience comments from supported platforms.</p>
+            <p>Send the release to connected channels, track status, and review audience feedback from supported platforms.</p>
           </article>
         </div>
       </section>
@@ -80,48 +81,48 @@
       <section class="public-section" id="platforms">
         <div class="public-section-head">
           <h2>Connected platform support</h2>
-          <p>ClipRelay currently focuses on creator publishing flows for the platforms below, using official authorization and publishing APIs where available.</p>
+          <p>ClipRelay focuses on creator publishing flows for the platforms below, using official authorization and publishing APIs where available.</p>
         </div>
         <div class="public-grid public-grid-4">
           <article class="public-card">
             <h3>YouTube Shorts</h3>
-            <p>OAuth connection, upload, publish, and comment review support.</p>
+            <p>Connect, upload, publish, and review supported comments.</p>
           </article>
           <article class="public-card">
             <h3>Instagram Reels</h3>
-            <p>Instagram business account connection, reels publishing, and comment review support.</p>
+            <p>Business account connection, reels publishing, and comment review support.</p>
           </article>
           <article class="public-card">
             <h3>TikTok</h3>
-            <p>Login Kit connection, short-form video publishing workflow, and posting review materials.</p>
+            <p>Login Kit connection, short-form publishing workflow, and review support materials.</p>
           </article>
           <article class="public-card">
             <h3>X</h3>
-            <p>OAuth connection, post publishing, and mention / reply review support.</p>
+            <p>OAuth connection, post publishing, and mentions / reply review support.</p>
           </article>
         </div>
       </section>
 
       <section class="public-section">
         <div class="public-section-head">
-          <h2>Support, legal, and review information</h2>
-          <p>These links are provided directly from the public website so reviewers and users can find policy and product context without opening the workspace first.</p>
+          <h2>Everything needed for review and policy access</h2>
+          <p>The public website links directly to ClipRelay policies and integration notes so reviewers can inspect the product context without opening the workspace first.</p>
         </div>
         <div class="public-grid public-grid-3">
           <article class="public-card">
             <h3>Terms of Service</h3>
-            <p>How ClipRelay may be used, account authorization expectations, content ownership, and service limitations.</p>
-            <a class="text-link" href="/terms.html">Read Terms of Service</a>
+            <p>Authorized use, content ownership, platform permissions, and service limitations.</p>
+            <a class="text-link" href="./terms.html">Read Terms of Service</a>
           </article>
           <article class="public-card">
             <h3>Privacy Policy</h3>
-            <p>What data ClipRelay processes, how content and tokens are used, and what control the operator has over stored workflow data.</p>
-            <a class="text-link" href="/privacy.html">Read Privacy Policy</a>
+            <p>How ClipRelay processes uploads, tokens, account data, and audience feedback.</p>
+            <a class="text-link" href="./privacy.html">Read Privacy Policy</a>
           </article>
           <article class="public-card">
             <h3>Review Notes</h3>
-            <p>Step-by-step notes that explain the TikTok integration, scope usage, and publishing flow for app review teams.</p>
-            <a class="text-link" href="/review-notes.html">Open review notes</a>
+            <p>Step-by-step TikTok integration notes, scope usage, and publishing flow details.</p>
+            <a class="text-link" href="./review-notes.html">Open review notes</a>
           </article>
         </div>
       </section>
@@ -129,17 +130,17 @@
 
     <footer class="public-footer">
       <div class="public-brand compact">
-        <img src="/cliprelay-icon.svg" alt="ClipRelay icon" />
+        <img src="./cliprelay-icon.svg" alt="ClipRelay icon" />
         <div>
           <strong>ClipRelay</strong>
           <span>Creator publishing workflow</span>
         </div>
       </div>
       <div class="public-footer-links">
-        <a href="/website.html">Website</a>
-        <a href="/terms.html">Terms</a>
-        <a href="/privacy.html">Privacy</a>
-        <a href="/review-notes.html">Review notes</a>
+        <a href="./website.html">Website</a>
+        <a href="./terms.html">Terms</a>
+        <a href="./privacy.html">Privacy</a>
+        <a href="./review-notes.html">Review notes</a>
         <a href="https://github.com/ezwin1103/Clip-Relay/issues">Support</a>
       </div>
     </footer>
